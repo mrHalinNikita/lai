@@ -6,9 +6,17 @@
     'author': 'Halin Nikita',
     'depends': ['base', 'web'],
     'data': [
-        'views/templates.xml',
         'data/ir.model.access.csv',
+        'views/templates.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            # SCSS
+            'lai_estimator/static/src/scss/lai_calculator.scss',
+            # JS
+            'lai_estimator/static/src/js/lai_calculator.js',
+        ],
+    },
     'external_dependencies': {
         'python': [
             'numpy',
