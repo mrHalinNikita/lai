@@ -4,7 +4,7 @@
     'summary': 'Calculate Leaf Area Index from RGB images for Central Black Soil Region',
     'category': 'Agriculture',
     'author': 'Halin Nikita',
-    'depends': ['base', 'web'],
+    'depends': ['base', 'web', 'website'],
     'data': [
         'data/ir.model.access.csv',
         'views/templates.xml',
