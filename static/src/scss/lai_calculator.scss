@@ -1,0 +1,57 @@
+@use "bootstrap/scss/bootstrap" as *;
+
+.lai-upload-form {
+    .btn-check:checked + .btn {
+        background-color: $success;
+        color: white;
+        border-color: $success;
+        box-shadow: 0 0 0 0.25rem rgba($success, 0.25);
+    }
+
+    .btn-check:focus + .btn {
+        box-shadow: 0 0 0 0.25rem rgba($success, 0.25);
+    }
+}
+
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+}
+
+img {
+    transition: transform 0.3s ease;
+
+    &:hover {
+        transform: scale(1.02);
+    }
+}
+
+h2 {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+h4 {
+    font-weight: 600;
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .card {
+        margin: 0 10px;
+    }
+
+    .btn-lg {
+        font-size: 1rem;
+        padding: 10px 20px;
+    }
+}
