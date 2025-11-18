@@ -13,7 +13,7 @@
                         <form action="/lai-calculate" method="POST" enctype="multipart/form-data" class="lai-upload-form">
                             <div class="mb-5">
                                 <label class="lai-label">Field Image</label>
-                                <input type="file" class="lai-file-input" name="image" accept="image/*" required="1"/>
+                                <input type="file" class="lai-file-input" name="image" accept="image/*" required="1" capture="environment"/>
                             </div>
 
                             <div class="mb-5">
