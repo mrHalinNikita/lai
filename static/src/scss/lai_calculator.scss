@@ -1,57 +1,198 @@
-@use "bootstrap/scss/bootstrap" as *;
-
-.lai-upload-form {
-    .btn-check:checked + .btn {
-        background-color: $success;
-        color: white;
-        border-color: $success;
-        box-shadow: 0 0 0 0.25rem rgba($success, 0.25);
-    }
-
-    .btn-check:focus + .btn {
-        box-shadow: 0 0 0 0.25rem rgba($success, 0.25);
-    }
+:root {
+    --lai-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --lai-radius: 12px;
+    --lai-spacing: 24px;
+    --lai-accent: #28a745;
+    --lai-border: #e0e0e0;
+    --lai-text: #1d1d1f;
+    --lai-subtext: #86868b;
 }
 
-.card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-
-    &:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    }
+.lai-apple-wrapper {
+    background: #ffffff;
+    min-height: 100vh;
+    padding: 60px 20px;
+    font-family: var(--lai-font);
+    color: var(--lai-text);
 }
 
-img {
-    transition: transform 0.3s ease;
-
-    &:hover {
-        transform: scale(1.02);
-    }
+.lai-apple-container {
+    max-width: 720px;
+    margin: 0 auto;
 }
 
-h2 {
-    font-weight: 700;
+.lai-card {
+    background: #ffffff;
+    border-radius: var(--lai-radius);
+    padding: var(--lai-spacing);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.lai-title {
+    font-weight: 600;
+    font-size: 28px;
+    margin: 0;
     letter-spacing: -0.5px;
 }
 
-h4 {
-    font-weight: 600;
+.lai-subtitle {
+    font-size: 16px;
+    color: var(--lai-subtext);
+    margin-top: 8px;
+    font-weight: 400;
 }
 
-.btn-lg {
-    padding: 12px 24px;
-    font-size: 1.1rem;
-    border-radius: 0.5rem;
+.lai-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--lai-text);
+    margin-bottom: 10px;
 }
 
-@media (max-width: 768px) {
-    .card {
-        margin: 0 10px;
+.lai-file-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--lai-border);
+    border-radius: var(--lai-radius);
+    font-size: 15px;
+    background: #fafafa;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    &:focus {
+        outline: none;
+        border-color: var(--lai-accent);
+        box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.15);
     }
+}
 
-    .btn-lg {
-        font-size: 1rem;
-        padding: 10px 20px;
+.lai-crop-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+input[type="radio"] {
+    display: none;
+}
+
+.lai-crop-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid var(--lai-border);
+    border-radius: 20px;
+    background: #fafafa;
+    color: var(--lai-text);
+    cursor: pointer;
+    transition: all 0.2s;
+    &:hover {
+        background: #f2f2f2;
+    }
+}
+
+input[type="radio"]:checked + .lai-crop-btn {
+    background: var(--lai-accent);
+    color: white;
+    border-color: var(--lai-accent);
+}
+
+.lai-submit-btn {
+    background: var(--lai-accent);
+    color: white;
+    border: none;
+    border-radius: var(--lai-radius);
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    &:hover {
+        background: #218838;
+    }
+    &:active {
+        transform: scale(0.98);
+    }
+    &:disabled {
+        opacity: 0.7;
+        cursor: wait;
+    }
+}
+
+.lai-error {
+    color: #d9534f;
+    font-size: 14px;
+}
+
+.lai-lai-value {
+    font-size: 64px;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -1px;
+    color: var(--lai-text);
+    margin-bottom: 8px;
+}
+
+.lai-meta {
+    font-size: 15px;
+    color: var(--lai-subtext);
+    margin: 0;
+}
+
+.lai-image-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.lai-image-label {
+    font-size: 13px;
+    color: var(--lai-subtext);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.lai-image-frame {
+    border-radius: var(--lai-radius);
+    overflow: hidden;
+    background: #fafafa;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+}
+
+.lai-download-btn,
+.lai-back-btn {
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: var(--lai-radius);
+    padding: 10px 24px;
+    transition: opacity 0.2s;
+}
+
+.lai-download-btn {
+    background: var(--lai-accent);
+    color: white;
+    &:hover {
+        opacity: 0.9;
+    }
+}
+
+.lai-back-btn {
+    color: var(--lai-subtext);
+    &:hover {
+        color: var(--lai-text);
     }
 }
