@@ -1,20 +1,23 @@
-from odoo import models, fields
+import io
+import base64
+import gc
+import logging
+
 import numpy as np
 import cv2
+from PIL import Image, ImageDraw
 from sklearn.cluster import KMeans
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from PIL import Image, ImageOps
-import io
+
+from odoo import models, fields, _, api
+
+_logger = logging.getLogger(__name__)
 
 
 class LAICalculation(models.Model):
     _name = 'lai.calculation'
     _description = 'LAI Calculation Record'
 
-    name = fields.Char(string='Name', required=True, default=lambda self: f'LAI-{self.id or 0}')
+    name = fields.Char(string='Name', required=True)
     image = fields.Binary(string='Original Image', attachment=True)
     image_filename = fields.Char(string='Filename')
     crop_type = fields.Selection([
@@ -34,87 +37,83 @@ class LAICalculation(models.Model):
             return True
         return super().check_access_rights(operation, raise_exception)
 
-    def calculate_lai_from_image(self, image_data, crop_type):
-        img_pil = Image.open(io.BytesIO(image_data)).convert("RGB")
-        img_pil.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
-        img_arr = np.array(img_pil)
+    @api.model
+    def _process_image_and_calculate_lai(self, image_data: bytes, crop_type: str):
+        try:
+            with io.BytesIO(image_data) as buf:
+                with Image.open(buf).convert("RGB") as img_pil:
+                    img_pil.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                    img_arr = np.array(img_pil)
 
-        lai_map = self._generate_lai_map_from_color_segments(img_arr)
-        avg_lai = float(np.nanmean(lai_map))
-        heatmap_bytes = self._generate_heatmap_overlay(img_arr, lai_map)
+            lai_map = self._generate_lai_map_from_color_segments(img_arr)
 
-        return avg_lai, heatmap_bytes, f"lai_heatmap_{self.id or 0}.png"
+            del img_arr
+            gc.collect()
 
-    def _generate_lai_map_from_color_segments(self, rgb_image, n_clusters=5):
+            avg_lai = float(np.nanmean(lai_map))
+
+            heatmap_bytes = self._generate_heatmap_pil(lai_map)
+            heatmap_filename = "lai_heatmap.png"
+
+            del lai_map
+            gc.collect()
+
+            return avg_lai, heatmap_bytes, heatmap_filename
+
+        except Exception as e:
+            _logger.exception("Error in _process_image_and_calculate_lai")
+            raise
+
+    def _generate_lai_map_from_color_segments(self, rgb_image, n_clusters=4):
         h, w, _ = rgb_image.shape
-        hsv = cv2.cvtColor(rgb_image.astype(np.uint8), cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
         hsv_pixels = hsv.reshape(-1, 3)
 
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=5)
         labels = kmeans.fit_predict(hsv_pixels)
 
-        lai_map = np.zeros((h, w), dtype=np.float32)
-
+        lai_map = np.full((h, w), np.nan, dtype=np.float32)
         for i in range(n_clusters):
             mask = (labels.reshape(h, w) == i)
             if not np.any(mask):
                 continue
-
             cluster_hsv = hsv[mask]
-            avg_hue = np.mean(cluster_hsv[:, 0])
-            avg_sat = np.mean(cluster_hsv[:, 1])
-            avg_val = np.mean(cluster_hsv[:, 2])
-
-            hue_norm = avg_hue / 180.0
-            green_score = max(0, 1 - abs(hue_norm - 0.17) * 3)
-            sat_score = avg_sat / 255.0
-            val_score = avg_val / 255.0
-
-            lai_cluster = 0.5 + 5.0 * green_score * sat_score * val_score
-            lai_map[mask] = min(6.0, max(0.0, lai_cluster))
+            avg_hue = np.mean(cluster_hsv[:, 0]) / 180.0
+            avg_sat = np.mean(cluster_hsv[:, 1]) / 255.0
+            avg_val = np.mean(cluster_hsv[:, 2]) / 255.0
+            green_score = max(0.0, 1.0 - abs(avg_hue - 0.17) * 3.0)
+            lai_val = 0.5 + 4.5 * green_score * avg_sat * avg_val
+            lai_map[mask] = np.clip(lai_val, 0.0, 6.0)
 
         return lai_map
 
-    def _generate_heatmap_overlay(self, rgb_image, lai_map, alpha=0.75):
-        colors = [
-            (0.4, 0.2, 0.1),
-            (0.6, 0.4, 0.2),
-            (0.8, 0.7, 0.3),
-            (0.4, 0.8, 0.4),
-            (0.2, 0.6, 0.2),
-            (0.0, 0.4, 0.0),
+    def _generate_heatmap_pil(self, lai_map):
+        h, w = lai_map.shape
+        palette = [
+            (102, 51, 26),
+            (153, 102, 51),
+            (204, 179, 77),
+            (102, 204, 102),
+            (51, 153, 51),
+            (0, 102, 0),
         ]
-        cmap = mcolors.LinearSegmentedColormap.from_list("lai_colormap", colors, N=100)
-        lai_viz = np.clip(lai_map, 0, 6)
 
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+        normalized = np.clip(lai_map, 0, 6)
+        indices = (normalized * (len(palette) - 1) / 6.0).astype(np.uint8)
 
-        try:
-            ax.imshow(rgb_image)
-            im = ax.imshow(lai_viz, cmap=cmap, vmin=0, vmax=6, alpha=alpha)
-            contours = ax.contour(lai_viz, levels=np.arange(0.5, 6.0, 0.5), colors='white', linewidths=0.3, alpha=0.6)
-            ax.clabel(contours, inline=True, fontsize=5, fmt="%.1f")
+        heatmap_rgb = np.zeros((h, w, 3), dtype=np.uint8)
+        for i, color in enumerate(palette):
+            heatmap_rgb[indices == i] = color
 
-            cbar = plt.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
-            cbar.set_label("LAI (m²/m²)", rotation=270, labelpad=15, fontsize=10)
-            cbar.set_ticks([0, 1, 2, 3, 4, 5, 6])
-            cbar.ax.tick_params(labelsize=9)
+        result_img = Image.fromarray(heatmap_rgb)
+        draw = ImageDraw.Draw(result_img)
+        draw.text((10, 10), "LAI: 0–6", fill=(255, 255, 255))
 
-            ax.set_title("LAI Spatial Map — Central Black Soil Region", fontsize=12, weight='bold')
-            ax.axis("off")
-            plt.tight_layout()
-
-            buf = io.BytesIO()
-            plt.savefig(
-                buf,
-                format='png',
-                dpi=100,
-                bbox_inches='tight',
-                pad_inches=0.1,
-                facecolor='white'
-            )
-            buf.seek(0)
-            return buf.read()
-
-        finally:
-            plt.close(fig)
+        buf = io.BytesIO()
+        result_img.save(buf, format='PNG', optimize=True)
+        buf.seek(0)
+        data = buf.getvalue()
+        buf.close()
+        result_img.close()
+        del heatmap_rgb, indices, normalized
+        return data
