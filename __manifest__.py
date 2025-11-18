@@ -9,7 +9,17 @@
         'views/templates.xml',
         'data/ir.model.access.csv',
     ],
+    'external_dependencies': {
+        'python': [
+            'numpy',
+            'opencv-python',
+            'scikit-learn',
+            'matplotlib',
+            'Pillow',
+        ]
+    },
     'installable': True,
     'application': True,
     'auto_install': False,
+    'license': 'LGPL-3',
 }
