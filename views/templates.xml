@@ -1,95 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
     <template id="lai_calculator_page" name="LAI Calculator Page">
         <t t-call="website.layout">
-            <div class="container mt-5">
-                <h2>🌿 LAI Estimator — Central Black Soil Region</h2>
-                <p>Upload an RGB image of your field to estimate Leaf Area Index.</p>
+            <div class="container-fluid py-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 col-md-10">
+                        <div class="card shadow-sm border-0 rounded-4">
+                            <div class="card-body p-4">
+                                <h2 class="text-success mb-3 text-center">
+                                    LAI Estimator - Central Black Soil Region
+                                </h2>
 
-                <form action="/lai-calculate" method="POST" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="image" class="form-label">Upload Field Photo</label>
-                        <input type="file" class="form-control" name="image" accept="image/*" required="1"/>
-                    </div>
+                                <form action="/lai-calculate" method="POST" enctype="multipart/form-data" class="lai-upload-form">
+                                    <div class="mb-4">
+                                        <label for="image" class="form-label fw-bold">📷 Upload Field Photo</label>
+                                        <input type="file" class="form-control form-control-lg" name="image" accept="image/*" required="1"/>
+                                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Crop Type</label>
-                        <div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="crop_type" id="wheat" value="wheat" checked="checked"/>
-                                <label class="form-check-label" for="wheat">Wheat</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="crop_type" id="corn" value="corn"/>
-                                <label class="form-check-label" for="corn">Corn</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="crop_type" id="sunflower" value="sunflower"/>
-                                <label class="form-check-label" for="sunflower">Sunflower</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="crop_type" id="mixed" value="mixed"/>
-                                <label class="form-check-label" for="mixed">Mixed</label>
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">🌱 Crop Type</label>
+                                        <div class="btn-group d-flex flex-wrap gap-2" role="group">
+                                            <input type="radio" class="btn-check" name="crop_type" id="wheat" value="wheat" checked="checked"/>
+                                            <label class="btn btn-outline-success btn-sm" for="wheat">Wheat</label>
+
+                                            <input type="radio" class="btn-check" name="crop_type" id="corn" value="corn"/>
+                                            <label class="btn btn-outline-success btn-sm" for="corn">Corn</label>
+
+                                            <input type="radio" class="btn-check" name="crop_type" id="sunflower" value="sunflower"/>
+                                            <label class="btn btn-outline-success btn-sm" for="sunflower">Sunflower</label>
+
+                                            <input type="radio" class="btn-check" name="crop_type" id="mixed" value="mixed"/>
+                                            <label class="btn btn-outline-success btn-sm" for="mixed">Mixed</label>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success btn-lg w-100 mt-3">
+                                        <i class="fa fa-magnifying-glass me-2"></i>Calculate LAI
+                                    </button>
+                                </form>
+
+                                <t t-if="request and request.params.get('error')">
+                                    <div class="alert alert-danger mt-3">
+                                        <strong>Error:</strong> <t t-esc="request.params.get('error')"/>
+                                    </div>
+                                </t>
                             </div>
                         </div>
                     </div>
-
-                    <button type="submit" class="btn btn-primary">🔍 Calculate LAI</button>
-                </form>
-
-                <t t-if="request and request.params.get('error')">
-                    <div class="alert alert-danger mt-3">
-                        <strong>Error:</strong> <t t-esc="request.params.get('error')"/>
-                    </div>
-                </t>
+                </div>
             </div>
         </t>
     </template>
 
     <template id="lai_result_page" name="LAI Result Page">
         <t t-call="website.layout">
-            <div class="container mt-5">
-                <h2>📊 LAI Calculation Result</h2>
+            <div class="container-fluid py-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10 col-md-12">
+                        <div class="card shadow-sm border-0 rounded-4">
+                            <div class="card-body p-4">
+                                <h2 class="text-primary mb-3 text-center">
+                                    <i class="fa fa-chart-bar me-2"></i>LAI Calculation Result
+                                </h2>
 
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h4>Average LAI: <span t-esc="calc.lai_avg"/></h4>
-                        <p>Crop: <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/></p>
-                        <p>Calculated on: <span t-esc="calc.date_calculated" t-options="{'widget': 'datetime'}"/></p>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <a t-att-href="'/web/content?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id) + '&amp;download=true&amp;filename=' + (calc.lai_heatmap_filename or 'lai_heatmap.png')"
-                        class="btn btn-success">
-                            ⬇️ Download Heatmap
-                        </a>
-                    </div>
-                </div>
+                                <div class="row mb-4 align-items-center">
+                                    <div class="col-md-6">
+                                        <h4 class="fw-bold">
+                                            Average LAI: <span t-esc="calc.lai_avg" class="text-success"/>
+                                        </h4>
+                                        <p class="mb-1">
+                                            <strong>Crop:</strong>
+                                            <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/>
+                                        </p>
+                                        <p class="mb-0">
+                                            <strong>Calculated on:</strong>
+                                            <span t-esc="calc.date_calculated" t-options="{'widget': 'datetime'}"/>
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                                        <a t-att-href="'/web/content?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id) + '&amp;download=true&amp;filename=' + (calc.lai_heatmap_filename or 'lai_heatmap.png')"
+                                           class="btn btn-outline-success btn-lg">
+                                            <i class="fa fa-download me-2"></i>Download Heatmap
+                                        </a>
+                                    </div>
+                                </div>
 
-                <!-- Original Image -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h5>📷 Original Image</h5>
-                        <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)"
-                            class="img-fluid border rounded"
-                            style="max-height: 400px; object-fit: contain;"
-                            alt="Original Field Photo"/>
-                    </div>
-                </div>
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5 class="fw-bold">
+                                            <i class="fa fa-camera me-2 text-info"></i>Original Image
+                                        </h5>
+                                        <div class="rounded overflow-hidden shadow-sm border">
+                                            <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)"
+                                                 class="img-fluid"
+                                                 style="max-height: 500px; object-fit: contain; width: 100%;"
+                                                 alt="Original Field Photo"/>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <!-- Heatmap -->
-                <div class="row">
-                    <div class="col-12">
-                        <h5>🎨 LAI Heatmap</h5>
-                        <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)"
-                            class="img-fluid border rounded"
-                            style="max-height: 400px; object-fit: contain;"
-                            alt="LAI Heatmap"/>
-                    </div>
-                </div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <h5 class="fw-bold">
+                                            <i class="fa fa-palette me-2 text-warning"></i>LAI Heatmap
+                                        </h5>
+                                        <div class="rounded overflow-hidden shadow-sm border">
+                                            <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)"
+                                                 class="img-fluid"
+                                                 style="max-height: 500px; object-fit: contain; width: 100%;"
+                                                 alt="LAI Heatmap"/>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <div class="mt-4">
-                    <a href="/lai-calculator" class="btn btn-secondary">← Back to Calculator</a>
+                                <div class="mt-4 text-center">
+                                    <a href="/lai-calculator" class="btn btn-secondary btn-lg">
+                                        <i class="fa fa-arrow-left me-2"></i>Back to Calculator
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </t>
     </template>
+
 </odoo>
