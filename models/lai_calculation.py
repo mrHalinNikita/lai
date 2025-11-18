@@ -2,9 +2,11 @@ from odoo import models, fields
 import numpy as np
 import cv2
 from sklearn.cluster import KMeans
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 
 
@@ -34,10 +36,13 @@ class LAICalculation(models.Model):
 
     def calculate_lai_from_image(self, image_data, crop_type):
         img_pil = Image.open(io.BytesIO(image_data)).convert("RGB")
+        img_pil.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
         img_arr = np.array(img_pil)
+
         lai_map = self._generate_lai_map_from_color_segments(img_arr)
         avg_lai = float(np.nanmean(lai_map))
         heatmap_bytes = self._generate_heatmap_overlay(img_arr, lai_map)
+
         return avg_lai, heatmap_bytes, f"lai_heatmap_{self.id or 0}.png"
 
     def _generate_lai_map_from_color_segments(self, rgb_image, n_clusters=5):
@@ -82,23 +87,34 @@ class LAICalculation(models.Model):
         cmap = mcolors.LinearSegmentedColormap.from_list("lai_colormap", colors, N=100)
         lai_viz = np.clip(lai_map, 0, 6)
 
-        fig, ax = plt.subplots(figsize=(12, 8))
-        ax.imshow(rgb_image)
-        im = ax.imshow(lai_viz, cmap=cmap, vmin=0, vmax=6, alpha=alpha)
-        contours = ax.contour(lai_viz, levels=np.arange(0.5, 6.0, 0.5), colors='white', linewidths=0.4, alpha=0.6)
-        ax.clabel(contours, inline=True, fontsize=6, fmt="%.1f")
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
-        cbar = plt.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
-        cbar.set_label("LAI (m²/m²)", rotation=270, labelpad=20)
-        cbar.set_ticks([0, 1, 2, 3, 4, 5, 6])
+        try:
+            ax.imshow(rgb_image)
+            im = ax.imshow(lai_viz, cmap=cmap, vmin=0, vmax=6, alpha=alpha)
+            contours = ax.contour(lai_viz, levels=np.arange(0.5, 6.0, 0.5), colors='white', linewidths=0.3, alpha=0.6)
+            ax.clabel(contours, inline=True, fontsize=5, fmt="%.1f")
 
-        ax.set_title("LAI Spatial Map — Central Black Soil Region", fontsize=14, weight='bold')
-        ax.axis("off")
-        plt.tight_layout()
+            cbar = plt.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+            cbar.set_label("LAI (m²/m²)", rotation=270, labelpad=15, fontsize=10)
+            cbar.set_ticks([0, 1, 2, 3, 4, 5, 6])
+            cbar.ax.tick_params(labelsize=9)
 
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', pad_inches=0.1)
-        buf.seek(0)
-        plt.close()
+            ax.set_title("LAI Spatial Map — Central Black Soil Region", fontsize=12, weight='bold')
+            ax.axis("off")
+            plt.tight_layout()
 
-        return buf.read()
+            buf = io.BytesIO()
+            plt.savefig(
+                buf,
+                format='png',
+                dpi=100,
+                bbox_inches='tight',
+                pad_inches=0.1,
+                facecolor='white'
+            )
+            buf.seek(0)
+            return buf.read()
+
+        finally:
+            plt.close(fig)
