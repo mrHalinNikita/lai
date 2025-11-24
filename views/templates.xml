@@ -89,6 +89,7 @@
 
                         <div class="lai-result-summary mb-5 text-center">
                             <div class="lai-lai-value">LAI&#160;<span t-esc="calc.lai_avg"/></div>
+                            <p class="lai-lai-unit">Leaf Area Index (m² leaf / m² ground)</p>
                             <p class="lai-meta">
                                 <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/>
                                 • 
