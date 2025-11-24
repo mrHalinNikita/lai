@@ -32,7 +32,6 @@ class LAICalculation(models.Model):
     user_id = fields.Many2one('res.users', string='User', default=lambda self: self.env.user)
     date_calculated = fields.Datetime(string='Calculated On', default=fields.Datetime.now)
 
-    # Параметры пользовательской калибровки
     use_custom_calibration = fields.Boolean(
         string="Use Custom Calibration",
         default=False,
@@ -41,7 +40,7 @@ class LAICalculation(models.Model):
     custom_green_hue_center = fields.Float(
         string="Green Hue Center (0–1)",
         default=0.17,
-        help="Ideal green hue in normalized HSV (e.g., 0.17 ≈ 61°)"
+        help="Ideal green hue in normalized HSV"
     )
     custom_green_hue_width = fields.Float(
         string="Green Hue Sensitivity",
