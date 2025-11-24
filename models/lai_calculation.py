@@ -8,7 +8,7 @@ import cv2
 from PIL import Image, ImageDraw
 from sklearn.cluster import KMeans
 
-from odoo import models, fields, _, api
+from odoo import models, fields, _
 
 _logger = logging.getLogger(__name__)
 
@@ -32,12 +32,30 @@ class LAICalculation(models.Model):
     user_id = fields.Many2one('res.users', string='User', default=lambda self: self.env.user)
     date_calculated = fields.Datetime(string='Calculated On', default=fields.Datetime.now)
 
+    # Параметры пользовательской калибровки
+    use_custom_calibration = fields.Boolean(
+        string="Use Custom Calibration",
+        default=False,
+        help="If checked, custom coefficients will be used instead of defaults."
+    )
+    custom_green_hue_center = fields.Float(
+        string="Green Hue Center (0–1)",
+        default=0.17,
+        help="Ideal green hue in normalized HSV (e.g., 0.17 ≈ 61°)"
+    )
+    custom_green_hue_width = fields.Float(
+        string="Green Hue Sensitivity",
+        default=3.0,
+        help="Multiplier for hue deviation penalty (higher = stricter green)"
+    )
+    custom_lai_min = fields.Float(string="Min LAI", default=0.5)
+    custom_lai_max = fields.Float(string="Max LAI", default=6.0)
+
     def check_access_rights(self, operation, raise_exception=True):
         if self.env.user._is_public() and operation == 'read':
             return True
         return super().check_access_rights(operation, raise_exception)
 
-    @api.model
     def _process_image_and_calculate_lai(self, image_data: bytes, crop_type: str):
         try:
             with io.BytesIO(image_data) as buf:
@@ -73,6 +91,14 @@ class LAICalculation(models.Model):
         labels = kmeans.fit_predict(hsv_pixels)
 
         lai_map = np.full((h, w), np.nan, dtype=np.float32)
+
+        use_custom = self.use_custom_calibration
+        hue_center = self.custom_green_hue_center if use_custom else 0.17
+        hue_width = self.custom_green_hue_width if use_custom else 3.0
+        lai_min = self.custom_lai_min if use_custom else 0.5
+        lai_max = self.custom_lai_max if use_custom else 6.0
+        lai_range = lai_max - lai_min
+
         for i in range(n_clusters):
             mask = (labels.reshape(h, w) == i)
             if not np.any(mask):
@@ -81,9 +107,10 @@ class LAICalculation(models.Model):
             avg_hue = np.mean(cluster_hsv[:, 0]) / 180.0
             avg_sat = np.mean(cluster_hsv[:, 1]) / 255.0
             avg_val = np.mean(cluster_hsv[:, 2]) / 255.0
-            green_score = max(0.0, 1.0 - abs(avg_hue - 0.17) * 3.0)
-            lai_val = 0.5 + 4.5 * green_score * avg_sat * avg_val
-            lai_map[mask] = np.clip(lai_val, 0.0, 6.0)
+
+            green_score = max(0.0, 1.0 - abs(avg_hue - hue_center) * hue_width)
+            lai_val = lai_min + lai_range * green_score * avg_sat * avg_val
+            lai_map[mask] = np.clip(lai_val, 0.0, lai_max)
 
         return lai_map
 
