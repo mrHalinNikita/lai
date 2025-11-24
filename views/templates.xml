@@ -15,6 +15,12 @@
                                 <label class="lai-label">Field Image</label>
                                 <input type="file" class="lai-file-input" name="image" accept="image/*" required="1" capture="environment"/>
                             </div>
+                            <div id="image-preview-container" class="lai-image-preview-container mb-5" style="display: none;">
+                                <div class="lai-image-preview-label">Preview</div>
+                                <div class="lai-image-preview-frame">
+                                    <img id="image-preview" src="" alt="Preview" />
+                                </div>
+                            </div>
 
                             <div class="mb-5">
                                 <label class="lai-label">Crop Type</label>
