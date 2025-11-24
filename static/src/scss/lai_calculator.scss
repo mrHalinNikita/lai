@@ -274,3 +274,11 @@ input[type="radio"]:checked + .lai-crop-btn {
     max-height: 100%;
     object-fit: contain;
 }
+
+.lai-lai-unit {
+    font-size: 14px;
+    color: var(--lai-subtext);
+    margin: 4px 0 12px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+}
