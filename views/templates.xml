@@ -19,15 +19,38 @@
                             <div class="mb-5">
                                 <label class="lai-label">Crop Type</label>
                                 <div class="lai-crop-buttons">
-                                    <t t-foreach="[
-                                        ('wheat', 'Wheat'),
-                                        ('corn', 'Corn'),
-                                        ('sunflower', 'Sunflower'),
-                                        ('mixed', 'Mixed')
-                                    ]" t-as="crop">
+                                    <t t-foreach="[('wheat', 'Wheat'), ('corn', 'Corn'), ('sunflower', 'Sunflower'), ('mixed', 'Mixed')]" t-as="crop">
                                         <input type="radio" name="crop_type" t-att-id="crop[0]" t-att-value="crop[0]" t-att-checked="crop[0] == 'wheat'"/>
                                         <label t-att-for="crop[0]" class="lai-crop-btn" t-esc="crop[1]"/>
                                     </t>
+                                </div>
+                            </div>
+
+                            <div class="mb-5">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" class="form-check-input" id="use_custom" name="use_custom_calibration" t-att-checked="use_custom_calibration"/>
+                                    <label class="form-check-label lai-label" for="use_custom">Use custom LAI calibration</label>
+                                </div>
+
+                                <div id="custom-calibration-fields" class="lai-custom-calibration" style="display: none;">
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <label class="lai-label">Green Hue Center (0–1)</label>
+                                            <input type="number" step="0.01" min="0" max="1" class="form-control" name="custom_green_hue_center" t-att-value="custom_green_hue_center"/>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="lai-label">Hue Sensitivity</label>
+                                            <input type="number" step="0.1" min="0" class="form-control" name="custom_green_hue_width" t-att-value="custom_green_hue_width"/>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="lai-label">Min LAI</label>
+                                            <input type="number" step="0.1" min="0" class="form-control" name="custom_lai_min" t-att-value="custom_lai_min"/>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="lai-label">Max LAI</label>
+                                            <input type="number" step="0.1" min="0.1" max="10" class="form-control" name="custom_lai_max" t-att-value="custom_lai_max"/>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -59,27 +82,33 @@
                         </div>
 
                         <div class="lai-result-summary mb-5 text-center">
-                            <div class="lai-lai-value">LAI <span t-esc="calc.lai_avg"/></div>
+                            <div class="lai-lai-value">LAI&#160;<span t-esc="calc.lai_avg"/></div>
                             <p class="lai-meta">
                                 <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/>
                                 • 
                                 <span t-esc="calc.date_calculated" t-options="{'widget': 'datetime'}"/>
                             </p>
+                            <t t-if="calc.use_custom_calibration">
+                                <p class="lai-meta text-muted">
+                                    Custom calibration used:
+                                    Hue=<t t-esc="calc.custom_green_hue_center"/>,
+                                    Sensitivity=<t t-esc="calc.custom_green_hue_width"/>,
+                                    LAI∈[<t t-esc="calc.custom_lai_min"/>, <t t-esc="calc.custom_lai_max"/>]
+                                </p>
+                            </t>
                         </div>
 
                         <div class="lai-image-grid mb-5">
                             <div class="lai-image-item">
                                 <div class="lai-image-label">Original</div>
                                 <div class="lai-image-frame">
-                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)"
-                                         alt="Original field image"/>
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)" alt="Original field image"/>
                                 </div>
                             </div>
                             <div class="lai-image-item">
                                 <div class="lai-image-label">Heatmap</div>
                                 <div class="lai-image-frame">
-                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)"
-                                         alt="LAI heatmap"/>
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)" alt="LAI heatmap"/>
                                 </div>
                             </div>
                         </div>
