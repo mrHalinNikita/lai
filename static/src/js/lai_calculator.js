@@ -33,6 +33,26 @@ function validateCalibration() {
     return { valid: true };
 }
 
+$(document).on('change', '.lai-file-input', function () {
+    const file = this.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const $form = $(this).closest('form');
+    const $previewContainer = $form.find('#image-preview-container');
+    const $previewImg = $form.find('#image-preview');
+
+    if (!$previewContainer.length || !$previewImg.length) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        $previewImg.attr('src', e.target.result);
+        $previewContainer.show();
+    };
+    reader.readAsDataURL(file);
+});
+
 $(document).on('submit', '.lai-upload-form', function (e) {
     const validation = validateCalibration();
     if (!validation.valid) {
