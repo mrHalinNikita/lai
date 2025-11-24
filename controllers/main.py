@@ -2,6 +2,7 @@ import logging
 from werkzeug.exceptions import RequestEntityTooLarge
 from odoo import http
 from odoo.http import request
+from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 import base64
 
 _logger = logging.getLogger(__name__)
@@ -106,10 +107,16 @@ class LAICalculatorController(http.Controller):
         except Exception as e:
             _logger.exception("Unexpected error in LAI calculation")
             return request.redirect('/lai-calculator?error=ProcessingFailed')
-
+    
     @http.route('/lai-result/<int:calc_id>', type='http', auth='public', website=True)
     def lai_result(self, calc_id, **kw):
         calc = request.env['lai.calculation'].sudo().browse(calc_id)
         if not calc.exists():
             return request.redirect('/lai-calculator?error=NotFound')
-        return request.render('lai_estimator.lai_result_page', {'calc': calc})
+
+        date_iso = (calc.date_calculated.isoformat() + 'Z') if calc.date_calculated else None
+        
+        return request.render('lai_estimator.lai_result_page', {
+            'calc': calc,
+            'date_iso': date_iso
+        })
