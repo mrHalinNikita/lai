@@ -74,9 +74,29 @@ $(document).on('change', '#use_custom', function () {
     }
 });
 
+function formatLocalDatetime() {
+    const elements = document.querySelectorAll('.lai-local-datetime');
+    
+    elements.forEach(span => {
+        const utc = span.dataset.utc;
+        if (!utc) return;
+        
+        const date = new Date(utc);
+        const formatted = date.toLocaleString([], {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        span.textContent = formatted;
+    });
+}
+
 $(document).ready(function () {
     const $checkbox = $('#use_custom');
     if ($checkbox.length && $checkbox.is(':checked')) {
         $('#custom-calibration-fields').show();
     }
+    formatLocalDatetime();
 });
