@@ -6,6 +6,7 @@
     --lai-border: #e0e0e0;
     --lai-text: #1d1d1f;
     --lai-subtext: #86868b;
+    --lai-bg-light: #fafafa;
 }
 
 .lai-apple-wrapper {
@@ -57,7 +58,7 @@
     border: 1px solid var(--lai-border);
     border-radius: var(--lai-radius);
     font-size: 15px;
-    background: #fafafa;
+    background: var(--lai-bg-light);
     transition: border-color 0.2s, box-shadow 0.2s;
     &:focus {
         outline: none;
@@ -82,7 +83,7 @@ input[type="radio"] {
     font-size: 14px;
     border: 1px solid var(--lai-border);
     border-radius: 20px;
-    background: #fafafa;
+    background: var(--lai-bg-light);
     color: var(--lai-text);
     cursor: pointer;
     transition: all 0.2s;
@@ -95,6 +96,53 @@ input[type="radio"]:checked + .lai-crop-btn {
     background: var(--lai-accent);
     color: white;
     border-color: var(--lai-accent);
+}
+
+.lai-custom-calibration {
+    padding: 16px;
+    background: var(--lai-bg-light);
+    border: 1px solid var(--lai-border);
+    border-radius: var(--lai-radius);
+    margin-top: 12px;
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -6px;
+    }
+
+    .col-6 {
+        flex: 0 0 50%;
+        padding: 0 6px;
+        margin-bottom: 12px;
+
+        @media (max-width: 768px) {
+            flex: 0 0 100%;
+        }
+    }
+
+    .lai-label {
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--lai-subtext);
+    }
+
+    input[type="number"] {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        border: 1px solid var(--lai-border);
+        border-radius: var(--lai-radius);
+        background: white;
+        transition: border-color 0.2s;
+
+        &:focus {
+            outline: none;
+            border-color: var(--lai-accent);
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.15);
+        }
+    }
 }
 
 .lai-submit-btn {
@@ -159,7 +207,7 @@ input[type="radio"]:checked + .lai-crop-btn {
 .lai-image-frame {
     border-radius: var(--lai-radius);
     overflow: hidden;
-    background: #fafafa;
+    background: var(--lai-bg-light);
     aspect-ratio: 4 / 3;
     display: flex;
     align-items: center;
