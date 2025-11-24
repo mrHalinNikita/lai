@@ -93,7 +93,9 @@
                             <p class="lai-meta">
                                 <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/>
                                 • 
-                                <span t-esc="calc.date_calculated" t-options="{'widget': 'datetime'}"/>
+                                <span class="lai-local-datetime" t-att-data-utc="date_iso">
+                                    <t t-esc="calc.date_calculated" t-options="{'widget': 'datetime'}"/>
+                                </span>
                             </p>
                             <t t-if="calc.use_custom_calibration">
                                 <p class="lai-meta text-muted">
