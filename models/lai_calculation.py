@@ -1,14 +1,14 @@
+# -*- coding: utf-8 -*-
 import io
 import base64
 import gc
 import logging
-
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw
-from sklearn.cluster import KMeans
 
 from odoo import models, fields, _
+from .cv_engine import CVEngine
 
 _logger = logging.getLogger(__name__)
 
@@ -20,33 +20,31 @@ class LAICalculation(models.Model):
     name = fields.Char(string='Name', required=True)
     image = fields.Binary(string='Original Image', attachment=True)
     image_filename = fields.Char(string='Filename')
+    
     crop_type = fields.Selection([
-        ('wheat', 'Wheat'),
-        ('corn', 'Corn'),
-        ('sunflower', 'Sunflower'),
-        ('mixed', 'Mixed'),
-    ], string='Crop Type', default='mixed')
-    lai_avg = fields.Float(string='Average LAI', digits=(4, 2))
-    lai_heatmap = fields.Binary(string='Heatmap Image', attachment=True)
+        ('wheat', 'Озимая пшеница'),
+        ('corn', 'Кукуруза'),
+        ('sunflower', 'Подсолнечник'),
+        ('soy', 'Соя'),
+        ('mixed', 'Смешанная'),
+    ], string='Культура', default='wheat')
+
+    lai_avg = fields.Float(string='Средний LAI', digits=(4, 2))
+    lai_heatmap = fields.Binary(string='Heatmap', attachment=True)
     lai_heatmap_filename = fields.Char(string='Heatmap Filename')
+
+    confidence = fields.Float(string='Уверенность модели', digits=(4, 3), default=0.0)
+    coverage_percent = fields.Float(string='Покрытие растительностью %', digits=(4, 2))
+    texture_homogeneity = fields.Float(string='Текстура (однородность)', digits=(4, 3))
+    recommendation_text = fields.Text(string='Рекомендация системы')
+    segmentation_method = fields.Char(string='Метод сегментации', default='CV_Ensemble_v2')
+
     user_id = fields.Many2one('res.users', string='User', default=lambda self: self.env.user)
     date_calculated = fields.Datetime(string='Calculated On', default=fields.Datetime.now)
 
-    use_custom_calibration = fields.Boolean(
-        string="Use Custom Calibration",
-        default=False,
-        help="If checked, custom coefficients will be used instead of defaults."
-    )
-    custom_green_hue_center = fields.Float(
-        string="Green Hue Center (0–1)",
-        default=0.17,
-        help="Ideal green hue in normalized HSV"
-    )
-    custom_green_hue_width = fields.Float(
-        string="Green Hue Sensitivity",
-        default=3.0,
-        help="Multiplier for hue deviation penalty (higher = stricter green)"
-    )
+    use_custom_calibration = fields.Boolean(string="Custom Calibration", default=False)
+    custom_green_hue_center = fields.Float(string="Green Hue Center", default=0.17)
+    custom_green_hue_width = fields.Float(string="Hue Sensitivity", default=3.0)
     custom_lai_min = fields.Float(string="Min LAI", default=0.5)
     custom_lai_max = fields.Float(string="Max LAI", default=6.0)
 
@@ -56,90 +54,107 @@ class LAICalculation(models.Model):
         return super().check_access_rights(operation, raise_exception)
 
     def _process_image_and_calculate_lai(self, image_data: bytes, crop_type: str):
+
         try:
-            with io.BytesIO(image_data) as buf:
-                with Image.open(buf).convert("RGB") as img_pil:
-                    img_pil.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-                    img_arr = np.array(img_pil)
 
-            lai_map = self._generate_lai_map_from_color_segments(img_arr)
-
-            del img_arr
+            if not image_data:
+                raise ValueError("Image data is empty")
+            
+            if len(image_data) < 100:
+                raise ValueError(f"Image data too small: {len(image_data)} bytes")
+            
+            img_arr = None
+            load_error = None
+            
+            try:
+                import tempfile, os
+                with tempfile.NamedTemporaryFile(suffix='.webp', delete=False) as tmp:
+                    tmp.write(image_data)
+                    tmp_path = tmp.name
+                
+                img_bgr = cv2.imread(tmp_path, cv2.IMREAD_COLOR)
+                
+                if img_bgr is not None:
+                    img_arr = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+                    _logger.info(f"Image loaded via OpenCV: shape={img_arr.shape}")
+                else:
+                    load_error = "OpenCV failed to read image"
+                
+                os.unlink(tmp_path)
+                
+            except Exception as e:
+                load_error = f"OpenCV error: {e}"
+            
+            if img_arr is None:
+                try:
+                    with io.BytesIO(image_data) as buf:
+                        with Image.open(buf) as img_pil:
+                            _logger.info(f"Image loaded via PIL: {img_pil.format}")
+                            img_pil = img_pil.convert("RGB")
+                            img_pil.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                            img_arr = np.array(img_pil)
+                except Exception as pil_err:
+                    _logger.error(f"PIL failed: {pil_err}")
+                    raise ValueError(f"Cannot process image: {load_error or pil_err}")
+            
+            if img_arr is None or img_arr.size == 0 or len(img_arr.shape) != 3:
+                raise ValueError(f"Invalid image array: {img_arr.shape if img_arr is not None else 'None'}")
+            
+            cv_engine = CVEngine()
+            image_proc = cv_engine.preprocess_image(img_arr)
+            indices = cv_engine.calculate_vegetation_indices(image_proc)
+            mask = cv_engine.ensemble_segmentation(indices)
+            mask_refined = cv_engine.refine_mask_adaptive(mask, image_proc)
+            
+            lai_result = cv_engine.calculate_lai_from_mask(mask_refined, image_proc, crop_type=crop_type)
+            confidence_data = cv_engine.estimate_confidence_v2(image_proc, mask_refined, lai_result)
+            
+            avg_lai = lai_result['lai_value']
+            coverage = lai_result['coverage'] * 100
+            texture_hom = lai_result['texture_homogeneity']
+            confidence = confidence_data['confidence']
+            recommendation = confidence_data['recommendation']
+            
+            heatmap_bytes = self._generate_heatmap_pil(image_proc, mask_refined, avg_lai)
+            heatmap_filename = "lai_heatmap_cv2.png"
+            
+            del img_arr, image_proc, mask, mask_refined, indices
             gc.collect()
-
-            avg_lai = float(np.nanmean(lai_map))
-
-            heatmap_bytes = self._generate_heatmap_pil(lai_map)
-            heatmap_filename = "lai_heatmap.png"
-
-            del lai_map
-            gc.collect()
-
-            return avg_lai, heatmap_bytes, heatmap_filename
-
-        except Exception as e:
-            _logger.exception("Error in _process_image_and_calculate_lai")
+            
+            return (avg_lai, heatmap_bytes, heatmap_filename, confidence, coverage, texture_hom, recommendation)
+            
+        except ValueError as ve:
+            _logger.error(f"Validation error: {ve}")
             raise
+        except Exception as e:
+            _logger.exception("Unexpected error")
+            raise ValueError(f"LAI calculation failed: {str(e)}")
 
-    def _generate_lai_map_from_color_segments(self, rgb_image, n_clusters=4):
-        h, w, _ = rgb_image.shape
-        hsv = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
-        hsv_pixels = hsv.reshape(-1, 3)
+    def _generate_heatmap_pil(self, image: np.ndarray, mask: np.ndarray, lai_value: float):
+        """
+        Генерация визуализации: изображение + полупрозрачная маска + текст
+        """
+        overlay = image.copy()
+        overlay[mask > 0] = [0, 255, 0]
+        
+        heatmap = cv2.addWeighted(overlay, 0.4, image, 0.6, 0)
+        
+        cv2.putText(
+            heatmap, f'LAI: {lai_value:.2f}', (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
+        )
+        cv2.putText(
+            heatmap, f'Conf: {self.confidence:.2f}', (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+        )
 
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=5)
-        labels = kmeans.fit_predict(hsv_pixels)
-
-        lai_map = np.full((h, w), np.nan, dtype=np.float32)
-
-        use_custom = self.use_custom_calibration
-        hue_center = self.custom_green_hue_center if use_custom else 0.17
-        hue_width = self.custom_green_hue_width if use_custom else 3.0
-        lai_min = self.custom_lai_min if use_custom else 0.5
-        lai_max = self.custom_lai_max if use_custom else 6.0
-        lai_range = lai_max - lai_min
-
-        for i in range(n_clusters):
-            mask = (labels.reshape(h, w) == i)
-            if not np.any(mask):
-                continue
-            cluster_hsv = hsv[mask]
-            avg_hue = np.mean(cluster_hsv[:, 0]) / 180.0
-            avg_sat = np.mean(cluster_hsv[:, 1]) / 255.0
-            avg_val = np.mean(cluster_hsv[:, 2]) / 255.0
-
-            green_score = max(0.0, 1.0 - abs(avg_hue - hue_center) * hue_width)
-            lai_val = lai_min + lai_range * green_score * avg_sat * avg_val
-            lai_map[mask] = np.clip(lai_val, 0.0, lai_max)
-
-        return lai_map
-
-    def _generate_heatmap_pil(self, lai_map):
-        h, w = lai_map.shape
-        palette = [
-            (102, 51, 26),
-            (153, 102, 51),
-            (204, 179, 77),
-            (102, 204, 102),
-            (51, 153, 51),
-            (0, 102, 0),
-        ]
-
-        normalized = np.clip(lai_map, 0, 6)
-        indices = (normalized * (len(palette) - 1) / 6.0).astype(np.uint8)
-
-        heatmap_rgb = np.zeros((h, w, 3), dtype=np.uint8)
-        for i, color in enumerate(palette):
-            heatmap_rgb[indices == i] = color
-
-        result_img = Image.fromarray(heatmap_rgb)
-        draw = ImageDraw.Draw(result_img)
-        draw.text((10, 10), "LAI: 0–6", fill=(255, 255, 255))
-
+        result_img = Image.fromarray(heatmap)
+        
         buf = io.BytesIO()
         result_img.save(buf, format='PNG', optimize=True)
         buf.seek(0)
         data = buf.getvalue()
         buf.close()
         result_img.close()
-        del heatmap_rgb, indices, normalized
+        
         return data

@@ -24,6 +24,8 @@
             'scikit-learn',
             'matplotlib',
             'Pillow',
+            'optuna',
+            'scikit-image'
         ]
     },
     'installable': True,

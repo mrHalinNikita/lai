@@ -4,6 +4,7 @@ from odoo import http
 from odoo.http import request
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 import base64
+import time
 
 _logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -46,39 +47,55 @@ class LAICalculatorController(http.Controller):
     @http.route('/lai-calculate', type='http', auth='public', methods=['POST'], website=True, csrf=False)
     def lai_calculate(self, **kw):
         image_file = kw.get('image')
+        
         if not image_file:
+            _logger.warning("No image file in request")
             return request.redirect('/lai-calculator?error=NoImage')
-
-        if hasattr(image_file, 'content_length'):
-            if image_file.content_length > MAX_IMAGE_SIZE:
-                return request.redirect('/lai-calculator?error=ImageTooLarge')
-
+        
+        try:
+            image_data = image_file.read()
+        except Exception as e:
+            _logger.error(f"Failed to read image file: {e}")
+            return request.redirect('/lai-calculator?error=ReadError')
+        
+        if not image_data or len(image_data) == 0:
+            _logger.warning("Empty image data received")
+            return request.redirect('/lai-calculator?error=EmptyImage')
+        
+        if len(image_data) > MAX_IMAGE_SIZE:
+            _logger.warning(f"Image too large: {len(image_data)} bytes")
+            return request.redirect('/lai-calculator?error=ImageTooLarge')
+        
+        _logger.info(f"Received image: {len(image_data)} bytes, filename: {image_file.filename}")
+        _logger.info(f"First 20 bytes (hex): {image_data[:20].hex()}")
+        
+        if image_file.filename:
+            ext = image_file.filename.lower().split('.')[-1]
+            valid_extensions = ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp']
+            if ext not in valid_extensions:
+                _logger.warning(f"Invalid file extension: {ext}")
+                return request.redirect(f'/lai-calculator?error=InvalidFormat&ext={ext}')
+        
         def safe_float(val, default):
             try:
                 return float(val) if val not in (None, '') else default
             except (ValueError, TypeError):
                 return default
-
+        
+        crop_type = kw.get('crop_type', 'wheat')
+        use_custom = bool(kw.get('use_custom_calibration'))
+        
+        if use_custom:
+            is_valid, error_msg = self._validate_calibration_params(kw)
+            if not is_valid:
+                params = {k: v for k, v in kw.items() if k != 'image' and v is not None}
+                query = '&'.join(f'{k}={v}' for k, v in params.items())
+                return request.redirect(f'/lai-calculator?error={error_msg}&{query}')
+        
         try:
-            image_data = image_file.read()
-            if not image_data:
-                return request.redirect('/lai-calculator?error=EmptyImage')
-            if len(image_data) > MAX_IMAGE_SIZE:
-                return request.redirect('/lai-calculator?error=ImageTooLarge')
-
-            crop_type = kw.get('crop_type', 'mixed')
-            use_custom = bool(kw.get('use_custom_calibration'))
-
-            if use_custom:
-                is_valid, error_msg = self._validate_calibration_params(kw)
-                if not is_valid:
-                    params = {k: v for k, v in kw.items() if k != 'image' and v is not None}
-                    query = '&'.join(f'{k}={v}' for k, v in params.items())
-                    return request.redirect(f'/lai-calculator?error={error_msg}&{query}')
-
             calc_vals = {
-                'name': f'LAI-{request.env.user.name or "Guest"}',
-                'image': base64.b64encode(image_data),
+                'name': f'LAI-{request.env.user.name or "Guest"}-{int(time.time())}',
+                'image': base64.b64encode(image_data).decode('utf-8'),
                 'image_filename': image_file.filename,
                 'crop_type': crop_type,
                 'use_custom_calibration': use_custom,
@@ -87,26 +104,36 @@ class LAICalculatorController(http.Controller):
                 'custom_lai_min': safe_float(kw.get('custom_lai_min'), 0.5),
                 'custom_lai_max': safe_float(kw.get('custom_lai_max'), 6.0),
             }
-
+            
             calc = request.env['lai.calculation'].sudo().create(calc_vals)
-            avg_lai, heatmap_bytes, heatmap_filename = calc._process_image_and_calculate_lai(image_data, crop_type)
-
+            
+            result = calc._process_image_and_calculate_lai(image_data, crop_type)
+            
+            avg_lai, heatmap_bytes, heatmap_filename, confidence, coverage, texture_hom, recommendation = result
+            
             calc.write({
                 'lai_avg': avg_lai,
-                'lai_heatmap': base64.b64encode(heatmap_bytes),
+                'lai_heatmap': base64.b64encode(heatmap_bytes).decode('utf-8'),
                 'lai_heatmap_filename': heatmap_filename,
+                'confidence': confidence,
+                'coverage_percent': coverage,
+                'texture_homogeneity': texture_hom,
+                'recommendation_text': recommendation,
             })
-
+            
+            _logger.info(f"LAI calculation successful: LAI={avg_lai}, Confidence={confidence}")
+            
             return request.redirect(f'/lai-result/{calc.id}')
-
+            
+        except ValueError as ve:
+            _logger.error(f"Validation error: {ve}")
+            return request.redirect(f'/lai-calculator?error=ValidationError&msg={str(ve)}')
         except MemoryError:
             _logger.error("MemoryError during LAI processing")
             return request.redirect('/lai-calculator?error=ServerOverloaded')
-        except RequestEntityTooLarge:
-            return request.redirect('/lai-calculator?error=ImageTooLarge')
         except Exception as e:
             _logger.exception("Unexpected error in LAI calculation")
-            return request.redirect('/lai-calculator?error=ProcessingFailed')
+            return request.redirect(f'/lai-calculator?error=ProcessingFailed&msg={str(e)}')
     
     @http.route('/lai-result/<int:calc_id>', type='http', auth='public', website=True)
     def lai_result(self, calc_id, **kw):
