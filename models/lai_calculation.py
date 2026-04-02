@@ -44,6 +44,9 @@ class LAICalculation(models.Model):
         ('sam', 'Segment Anything Model (SAM vit_b)'),
     ], string='Метод сегментации', default='cv_ensemble')
 
+    crop_status = fields.Char(string="AI Статус посевов", readonly=True)
+    status_confidence = fields.Float(string="Уверенность AI", digits=(4, 3), readonly=True)
+
     user_id = fields.Many2one('res.users', string='User', default=lambda self: self.env.user)
     date_calculated = fields.Datetime(string='Calculated On', default=fields.Datetime.now)
 
@@ -85,6 +88,18 @@ class LAICalculation(models.Model):
             confidence = float(confidence_data['confidence'])
             recommendation = confidence_data['recommendation']
             heatmap_bytes = self._generate_heatmap_pil(image_proc, mask_refined, avg_lai)
+
+            status_info = self._assess_crop_status_with_clip(img_arr)
+            if status_info['status'] != 'unknown' and status_info['confidence'] > 0.3:
+                recommendation += f"\n\n🤖 AI Assessment: {status_info['status'].title()} ({status_info['confidence']*100:.0f}%)"
+                
+                status_lower = status_info['status'].lower()
+                if any(kw in status_lower for kw in ['stressed', 'yellowing', 'drought', 'deficiency']):
+                    recommendation += "\nОбнаружены признаки стресса. Проверьте полив, влажность почвы и уровень питательных веществ (N-P-K)."
+                elif any(kw in status_lower for kw in ['weed', 'infested']):
+                    recommendation += "\nВысокая вероятность появления сорняков. Рассмотрите возможность целенаправленного применения гербицидов или механической прополки."
+                elif any(kw in status_lower for kw in ['bare', 'sparse', 'early']):
+                    recommendation += "\nНизкая плотность растительности. Проверьте всхожесть или рассмотрите возможность повторного посева, если она ниже порогового значения."
             
             _logger.info(f"LAI calculated: method={method}, lai={avg_lai:.2f}, coverage={coverage:.1f}%, conf={confidence:.3f}")
             
@@ -202,6 +217,25 @@ class LAICalculation(models.Model):
         buf.close()
         result_img.close()
         return data
+
+    def _assess_crop_status_with_clip(self, rgb_image: np.ndarray) -> dict:
+
+        from .clip_adapter import CLIPAdapter
+        
+        try:
+            result = CLIPAdapter.assess_crop_status(rgb_image)
+            
+            self.write({
+                'crop_status': result['status'],
+                'status_confidence': result['confidence']
+            })
+            
+            return result
+        except Exception as e:
+            _logger.warning(f"CLIP assessment skipped: {e}")
+            return {'status': 'unknown', 'confidence': 0.0, 'all_probabilities': {}}
+        finally:
+            CLIPAdapter.cleanup()
     
     def _cleanup_memory(self, variables: list):
         for var in variables:

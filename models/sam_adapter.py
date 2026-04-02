@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 class SAMAdapter: 
     _predictor = None
     _initialized = False
-    _model_type = 'vit_h'
+    _model_type = 'vit_b'
     
     @classmethod
     def initialize(cls, checkpoint_path: str, device: str = 'cpu') -> bool:

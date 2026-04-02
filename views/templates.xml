@@ -144,6 +144,20 @@
                                     LAI∈[<t t-esc="calc.custom_lai_min"/>, <t t-esc="calc.custom_lai_max"/>]
                                 </p>
                             </t>
+
+                            <t t-if="calc.crop_status and calc.crop_status != 'unknown'">
+                                <div class="lai-ai-diagnosis mb-4 p-3 rounded" style="background: #f0f7ff; border-left: 4px solid #0071e3;">
+                                    <h5 class="mb-2">🤖 AI Assessment</h5>
+                                    <p class="mb-1"><strong>Status:</strong> <span t-esc="calc.crop_status"/></p>
+                                    <p class="mb-1">
+                                        <strong>Confidence:</strong> 
+                                        <span class="badge" 
+                                            t-att-class="'bg-success' if calc.status_confidence > 0.7 else 'bg-warning text-dark'">
+                                            <t t-esc="int(calc.status_confidence * 100)"/>%
+                                        </span>
+                                    </p>
+                                </div>
+                            </t>
                         </div>
 
                         <div class="lai-image-grid mb-5">
