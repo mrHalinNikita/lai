@@ -282,3 +282,66 @@ input[type="radio"]:checked + .lai-crop-btn {
     font-weight: 400;
     letter-spacing: -0.2px;
 }
+
+.lai-method-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lai-method-buttons input[type="radio"] {
+    display: none;
+}
+
+.lai-method-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fff;
+    gap: 6px;
+}
+
+.lai-method-btn:hover {
+    border-color: #0071e3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.15);
+}
+
+.lai-method-buttons input[type="radio"]:checked + .lai-method-btn {
+    border-color: #0071e3;
+    background: #f0f7ff;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+}
+
+.lai-method-icon {
+    font-size: 20px;
+    margin-right: 8px;
+}
+
+.lai-method-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #1d1d1f;
+}
+
+.lai-method-desc {
+    font-size: 12px;
+    color: #6e6e73;
+    margin-top: 2px;
+}
+
+.lai-method-btn-accent {
+    border-left: 4px solid #0071e3;
+}
+
+.lai-info-box {
+    padding: 12px 16px;
+    background: #f5f5f7;
+    border-radius: 8px;
+    border-left: 3px solid #0071e3;
+}

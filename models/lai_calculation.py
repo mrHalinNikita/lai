@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 import io
 import base64
 import gc
 import logging
 import numpy as np
 import cv2
-from PIL import Image, ImageDraw
+from PIL import Image
+import time
+import os
 
 from odoo import models, fields, _
 from .cv_engine import CVEngine
@@ -37,7 +38,11 @@ class LAICalculation(models.Model):
     coverage_percent = fields.Float(string='Покрытие растительностью %', digits=(4, 2))
     texture_homogeneity = fields.Float(string='Текстура (однородность)', digits=(4, 3))
     recommendation_text = fields.Text(string='Рекомендация системы')
-    segmentation_method = fields.Char(string='Метод сегментации', default='CV_Ensemble_v2')
+    
+    segmentation_method = fields.Selection([
+        ('cv_ensemble', 'CV Ensemble (OpenCV + Indices)'),
+        ('sam', 'Segment Anything Model (SAM vit_b)'),
+    ], string='Метод сегментации', default='cv_ensemble')
 
     user_id = fields.Many2one('res.users', string='User', default=lambda self: self.env.user)
     date_calculated = fields.Datetime(string='Calculated On', default=fields.Datetime.now)
@@ -52,109 +57,154 @@ class LAICalculation(models.Model):
         if self.env.user._is_public() and operation == 'read':
             return True
         return super().check_access_rights(operation, raise_exception)
-
+    
     def _process_image_and_calculate_lai(self, image_data: bytes, crop_type: str):
 
+        img_arr = image_proc = mask = mask_refined = indices = None
+        lai_result = confidence_data = None
+        cv_engine = CVEngine()
+        
         try:
-
-            if not image_data:
-                raise ValueError("Image data is empty")
+            img_arr = self._load_image(image_data)
+            if img_arr is None or img_arr.size == 0:
+                raise ValueError("Failed to load or process image")
             
-            if len(image_data) < 100:
-                raise ValueError(f"Image data too small: {len(image_data)} bytes")
+            method = self.segmentation_method or 'cv_ensemble'
             
-            img_arr = None
-            load_error = None
-            
-            try:
-                import tempfile, os
-                with tempfile.NamedTemporaryFile(suffix='.webp', delete=False) as tmp:
-                    tmp.write(image_data)
-                    tmp_path = tmp.name
-                
-                img_bgr = cv2.imread(tmp_path, cv2.IMREAD_COLOR)
-                
-                if img_bgr is not None:
-                    img_arr = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-                    _logger.info(f"Image loaded via OpenCV: shape={img_arr.shape}")
-                else:
-                    load_error = "OpenCV failed to read image"
-                
-                os.unlink(tmp_path)
-                
-            except Exception as e:
-                load_error = f"OpenCV error: {e}"
-            
-            if img_arr is None:
-                try:
-                    with io.BytesIO(image_data) as buf:
-                        with Image.open(buf) as img_pil:
-                            _logger.info(f"Image loaded via PIL: {img_pil.format}")
-                            img_pil = img_pil.convert("RGB")
-                            img_pil.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-                            img_arr = np.array(img_pil)
-                except Exception as pil_err:
-                    _logger.error(f"PIL failed: {pil_err}")
-                    raise ValueError(f"Cannot process image: {load_error or pil_err}")
-            
-            if img_arr is None or img_arr.size == 0 or len(img_arr.shape) != 3:
-                raise ValueError(f"Invalid image array: {img_arr.shape if img_arr is not None else 'None'}")
-            
-            cv_engine = CVEngine()
-            image_proc = cv_engine.preprocess_image(img_arr)
-            indices = cv_engine.calculate_vegetation_indices(image_proc)
-            mask = cv_engine.ensemble_segmentation(indices)
-            mask_refined = cv_engine.refine_mask_adaptive(mask, image_proc)
+            if method == 'sam':
+                image_proc, mask_refined = self._segment_with_sam_pipeline(cv_engine, img_arr)
+            else:
+                image_proc, mask_refined = self._segment_with_cv_pipeline(cv_engine, img_arr)
             
             lai_result = cv_engine.calculate_lai_from_mask(mask_refined, image_proc, crop_type=crop_type)
             confidence_data = cv_engine.estimate_confidence_v2(image_proc, mask_refined, lai_result)
             
-            avg_lai = lai_result['lai_value']
-            coverage = lai_result['coverage'] * 100
-            texture_hom = lai_result['texture_homogeneity']
-            confidence = confidence_data['confidence']
+            avg_lai = float(lai_result['lai_value'])
+            coverage = float(lai_result['coverage'] * 100)
+            texture_hom = float(lai_result['texture_homogeneity'])
+            confidence = float(confidence_data['confidence'])
             recommendation = confidence_data['recommendation']
-            
             heatmap_bytes = self._generate_heatmap_pil(image_proc, mask_refined, avg_lai)
-            heatmap_filename = "lai_heatmap_cv2.png"
             
-            del img_arr, image_proc, mask, mask_refined, indices
-            gc.collect()
+            _logger.info(f"LAI calculated: method={method}, lai={avg_lai:.2f}, coverage={coverage:.1f}%, conf={confidence:.3f}")
             
-            return (avg_lai, heatmap_bytes, heatmap_filename, confidence, coverage, texture_hom, recommendation)
+            return (avg_lai, heatmap_bytes, "lai_heatmap.png", confidence, coverage, texture_hom, recommendation)
             
-        except ValueError as ve:
-            _logger.error(f"Validation error: {ve}")
+        except ValueError:
             raise
         except Exception as e:
-            _logger.exception("Unexpected error")
+            _logger.exception("Unexpected error in LAI calculation")
             raise ValueError(f"LAI calculation failed: {str(e)}")
-
-    def _generate_heatmap_pil(self, image: np.ndarray, mask: np.ndarray, lai_value: float):
-        """
-        Генерация визуализации: изображение + полупрозрачная маска + текст
-        """
+        finally:
+            self._cleanup_memory([img_arr, image_proc, mask, mask_refined, indices, lai_result, confidence_data])
+    
+    def _load_image(self, image_data: bytes) -> np.ndarray | None:
+        import tempfile
+        
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.webp', delete=False) as tmp:
+                tmp.write(image_data)
+                tmp_path = tmp.name
+            
+            img_bgr = cv2.imread(tmp_path, cv2.IMREAD_COLOR)
+            os.unlink(tmp_path)
+            
+            if img_bgr is not None:
+                return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        except Exception as e:
+            _logger.debug(f"OpenCV load failed: {e}")
+        
+        try:
+            with io.BytesIO(image_data) as buf:
+                with Image.open(buf) as img_pil:
+                    img_pil = img_pil.convert("RGB")
+                    img_pil.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                    return np.array(img_pil)
+        except Exception as e:
+            _logger.error(f"PIL load failed: {e}")
+            return None
+    
+    def _segment_with_sam_pipeline(self, cv_engine, img_arr: np.ndarray):
+        from .sam_adapter import SAMAdapter
+        
+        start_time = time.time()
+        _logger.info(f"[SAM vit_b] Starting segmentation")
+        
+        try:
+            checkpoint_path = os.environ.get('SAM_CHECKPOINT_PATH', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sam_checkpoints', 'sam_vit_b_01ec64.pth'))
+            device = 'cuda' if os.environ.get('USE_CUDA') == '1' else 'cpu'
+            
+            SAMAdapter.initialize(checkpoint_path, device=device)
+            
+            h, w = img_arr.shape[:2]
+            max_dim = 1024
+            if max(h, w) > max_dim:
+                scale = max_dim / max(h, w)
+                new_size = (int(w * scale), int(h * scale))
+                img_resized = cv2.resize(img_arr, new_size, interpolation=cv2.INTER_LINEAR)
+            else:
+                img_resized = img_arr.copy()
+            
+            mask = SAMAdapter.segment_vegetation(
+                img_resized,
+                prompt_box=None,
+                min_area_ratio=0.002
+            )
+            
+            if img_resized.shape != img_arr.shape[:2]:
+                mask = cv2.resize(mask, (img_arr.shape[1], img_arr.shape[0]), interpolation=cv2.INTER_NEAREST)
+            
+            image_proc = cv_engine.preprocess_image(img_arr)
+            
+            elapsed = time.time() - start_time
+            coverage = np.sum(mask > 0) / (mask.shape[0] * mask.shape[1]) * 100
+            _logger.info(f"[SAM vit_b] Done in {elapsed:.2f}s | coverage: {coverage:.1f}%")
+            
+            return image_proc, mask
+            
+        except Exception as e:
+            _logger.warning(f"[SAM] Failed: {e}. Falling back to CV_Ensemble...")
+            return self._segment_with_cv_pipeline(cv_engine, img_arr)
+        finally:
+            SAMAdapter.aggressive_cleanup()
+            if 'img_resized' in locals() and img_resized is not img_arr:
+                del img_resized
+            gc.collect()
+    
+    def _segment_with_cv_pipeline(self, cv_engine, img_arr: np.ndarray):
+        start_time = time.time()
+        
+        image_proc = cv_engine.preprocess_image(img_arr)
+        indices = cv_engine.calculate_vegetation_indices(image_proc)
+        mask = cv_engine.ensemble_segmentation(indices)
+        mask_refined = cv_engine.refine_mask_adaptive(mask, image_proc)
+        
+        elapsed = time.time() - start_time
+        coverage = np.sum(mask_refined > 0) / (mask_refined.size) * 100
+        _logger.info(f"[CV_Ensemble] Done in {elapsed:.2f}s | coverage: {coverage:.1f}%")
+        
+        return image_proc, mask_refined
+    
+    def _generate_heatmap_pil(self, image: np.ndarray, mask: np.ndarray, lai_value: float) -> bytes:
         overlay = image.copy()
         overlay[mask > 0] = [0, 255, 0]
-        
         heatmap = cv2.addWeighted(overlay, 0.4, image, 0.6, 0)
         
-        cv2.putText(
-            heatmap, f'LAI: {lai_value:.2f}', (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
-        )
-        cv2.putText(
-            heatmap, f'Conf: {self.confidence:.2f}', (10, 60),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-        )
-
-        result_img = Image.fromarray(heatmap)
+        cv2.putText(heatmap, f'LAI: {lai_value:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(heatmap, f'Conf: {self.confidence:.2f}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
+        result_img = Image.fromarray(heatmap)
         buf = io.BytesIO()
         result_img.save(buf, format='PNG', optimize=True)
         buf.seek(0)
+        
         data = buf.getvalue()
         buf.close()
         result_img.close()
-        
         return data
+    
+    def _cleanup_memory(self, variables: list):
+        for var in variables:
+            if var is not None:
+                del var
+        gc.collect()

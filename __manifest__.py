@@ -25,7 +25,11 @@
             'matplotlib',
             'Pillow',
             'optuna',
-            'scikit-image'
+            'scikit-image',
+            'torch',
+            'torchvision',
+            'segment-anything',
+            'transformers',
         ]
     },
     'installable': True,

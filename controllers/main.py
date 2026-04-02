@@ -42,6 +42,7 @@ class LAICalculatorController(http.Controller):
             'custom_green_hue_width': kw.get('custom_green_hue_width', '3.0'),
             'custom_lai_min': kw.get('custom_lai_min', '0.5'),
             'custom_lai_max': kw.get('custom_lai_max', '6.0'),
+            'segmentation_method': kw.get('segmentation_method', 'cv_ensemble'),
         })
 
     @http.route('/lai-calculate', type='http', auth='public', methods=['POST'], website=True, csrf=False)
@@ -85,8 +86,15 @@ class LAICalculatorController(http.Controller):
         crop_type = kw.get('crop_type', 'wheat')
         use_custom = bool(kw.get('use_custom_calibration'))
         
+        segmentation_method = kw.get('segmentation_method', 'cv_ensemble')
+        valid_methods = ['cv_ensemble', 'sam']
+        if segmentation_method not in valid_methods:
+            _logger.warning(f"Invalid segmentation_method: {segmentation_method}, falling back to cv_ensemble")
+            segmentation_method = 'cv_ensemble'
+        
         if use_custom:
             is_valid, error_msg = self._validate_calibration_params(kw)
+
             if not is_valid:
                 params = {k: v for k, v in kw.items() if k != 'image' and v is not None}
                 query = '&'.join(f'{k}={v}' for k, v in params.items())
@@ -98,6 +106,7 @@ class LAICalculatorController(http.Controller):
                 'image': base64.b64encode(image_data).decode('utf-8'),
                 'image_filename': image_file.filename,
                 'crop_type': crop_type,
+                'segmentation_method': segmentation_method,
                 'use_custom_calibration': use_custom,
                 'custom_green_hue_center': safe_float(kw.get('custom_green_hue_center'), 0.17),
                 'custom_green_hue_width': safe_float(kw.get('custom_green_hue_width'), 3.0),
@@ -127,7 +136,8 @@ class LAICalculatorController(http.Controller):
             
         except ValueError as ve:
             _logger.error(f"Validation error: {ve}")
-            return request.redirect(f'/lai-calculator?error=ValidationError&msg={str(ve)}')
+            safe_msg = str(ve).replace('\n', ' ').replace('\r', '')[:150]
+            return request.redirect(f'/lai-calculator?error=ValidationError&msg={safe_msg}')
         except MemoryError:
             _logger.error("MemoryError during LAI processing")
             return request.redirect('/lai-calculator?error=ServerOverloaded')

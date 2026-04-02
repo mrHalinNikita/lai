@@ -33,6 +33,45 @@
                             </div>
 
                             <div class="mb-5">
+                                <label class="lai-label">Segmentation Method</label>
+                                <div class="lai-method-buttons">
+                                    <!-- CV Ensemble -->
+                                    <input type="radio" 
+                                           name="segmentation_method" 
+                                           id="method_cv" 
+                                           value="cv_ensemble"
+                                           t-att-checked="segmentation_method == 'cv_ensemble' or not segmentation_method"/>
+                                    <label for="method_cv" class="lai-method-btn lai-method-btn-primary">
+                                        <span class="lai-method-icon">⚡</span>
+                                        <span class="lai-method-name">CV Ensemble</span>
+                                        <span class="lai-method-desc">Fast • CPU • Good for screening</span>
+                                    </label>
+                                    
+                                    <!-- SAM -->
+                                    <input type="radio" 
+                                           name="segmentation_method" 
+                                           id="method_sam" 
+                                           value="sam"
+                                           t-att-checked="segmentation_method == 'sam'"/>
+                                    <label for="method_sam" class="lai-method-btn lai-method-btn-accent">
+                                        <span class="lai-method-icon">🎯</span>
+                                        <span class="lai-method-name">Segment Anything (SAM)</span>
+                                        <span class="lai-method-desc">Accurate • GPU recommended • Research grade</span>
+                                    </label>
+                                </div>
+                                
+                                <div id="sam-requirements-info" class="lai-info-box" style="display: none; margin-top: 12px;">
+                                    <small class="text-muted">
+                                        <strong>⚠️ SAM requirements:</strong><br/>
+                                        • First run: ~3-5 sec (CPU) or ~1 sec (GPU)<br/>
+                                        • Memory: ~1.5 GB RAM<br/>
+                                        • Best for: detailed analysis, publications<br/>
+                                        <em>Auto-fallback to CV if SAM fails</em>
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="mb-5">
                                 <div class="form-check mb-3">
                                     <input type="checkbox" class="form-check-input" id="use_custom" name="use_custom_calibration" t-att-checked="use_custom_calibration"/>
                                     <label class="form-check-label lai-label" for="use_custom">Use custom LAI calibration</label>
