@@ -28,8 +28,6 @@ class LAICalculatorController(http.Controller):
                 image.save(buffer, format="JPEG", quality=85, optimize=True)
                 return buffer.getvalue()
         except (UnidentifiedImageError, OSError):
-            # Some uploads are valid WEBP/other formats with wrong file extension
-            # or Pillow is missing the corresponding codec. Fall back to OpenCV.
             np_buffer = np.frombuffer(image_data, dtype=np.uint8)
             decoded = cv2.imdecode(np_buffer, cv2.IMREAD_COLOR)
             if decoded is None:
@@ -55,21 +53,21 @@ class LAICalculatorController(http.Controller):
         try:
             hue_center = float(params.get("custom_green_hue_center", 0.17))
             hue_width = float(params.get("custom_green_hue_width", 3.0))
-            lai_min = float(params.get("custom_lai_min", 0.5))
+            lai_min = float(params.get("custom_lai_min", 0.0))
             lai_max = float(params.get("custom_lai_max", 6.0))
         except (TypeError, ValueError):
-            return False, "Invalid number format in calibration parameters."
+            return False, "Некорректный формат числа в параметрах калибровки."
 
         if not (0.0 <= hue_center <= 1.0):
-            return False, "Green Hue Center must be between 0 and 1."
+            return False, "Центр зеленого оттенка должен быть в диапазоне от 0 до 1."
         if not (0.1 <= hue_width <= 10.0):
-            return False, "Hue Sensitivity must be between 0.1 and 10."
+            return False, "Чувствительность оттенка должна быть в диапазоне от 0.1 до 10."
         if not (0.0 <= lai_min <= 7.9):
-            return False, "Min LAI must be between 0 and 7.9."
+            return False, "Минимальный LAI должен быть в диапазоне от 0 до 7.9."
         if not (0.1 <= lai_max <= 8.0):
-            return False, "Max LAI must be between 0.1 and 8."
+            return False, "Максимальный LAI должен быть в диапазоне от 0.1 до 8."
         if lai_min >= lai_max:
-            return False, "Min LAI must be less than Max LAI."
+            return False, "Минимальный LAI должен быть меньше максимального."
 
         return True, ""
 
@@ -87,7 +85,7 @@ class LAICalculatorController(http.Controller):
                 "use_custom_calibration": kw.get("use_custom_calibration") == "on",
                 "custom_green_hue_center": kw.get("custom_green_hue_center", "0.17"),
                 "custom_green_hue_width": kw.get("custom_green_hue_width", "3.0"),
-                "custom_lai_min": kw.get("custom_lai_min", "0.5"),
+                "custom_lai_min": kw.get("custom_lai_min", "0.0"),
                 "custom_lai_max": kw.get("custom_lai_max", "6.0"),
                 "segmentation_method": kw.get("segmentation_method", "cv_ensemble"),
             },
@@ -155,31 +153,35 @@ class LAICalculatorController(http.Controller):
                     "use_custom_calibration": use_custom,
                     "custom_green_hue_center": safe_float(kw.get("custom_green_hue_center"), 0.17),
                     "custom_green_hue_width": safe_float(kw.get("custom_green_hue_width"), 3.0),
-                    "custom_lai_min": safe_float(kw.get("custom_lai_min"), 0.5),
+                    "custom_lai_min": safe_float(kw.get("custom_lai_min"), 0.0),
                     "custom_lai_max": safe_float(kw.get("custom_lai_max"), 6.0),
                 }
             )
 
-            (
-                avg_lai,
-                heatmap_bytes,
-                heatmap_filename,
-                confidence,
-                coverage,
-                texture_hom,
-                recommendation,
-                status_info,
-            ) = calc._process_image_and_calculate_lai(image_data, crop_type)
+            result = calc._process_image_and_calculate_lai(image_data, crop_type)
+            status_info = result.get("status_info", {})
 
             calc.write(
                 {
-                    "lai_avg": avg_lai,
-                    "lai_heatmap": base64.b64encode(heatmap_bytes).decode("ascii"),
-                    "lai_heatmap_filename": heatmap_filename,
-                    "confidence": confidence,
-                    "coverage_percent": coverage,
-                    "texture_homogeneity": texture_hom,
-                    "recommendation_text": recommendation,
+                    "lai_avg": result["avg_lai"],
+                    "lai_heatmap": base64.b64encode(result["heatmap_bytes"]).decode("ascii"),
+                    "lai_heatmap_filename": result["heatmap_filename"],
+                    "vegetation_map": base64.b64encode(result["vegetation_map_bytes"]).decode("ascii"),
+                    "vegetation_map_filename": result["vegetation_map_filename"],
+                    "lai_distribution_map": base64.b64encode(result["lai_distribution_map_bytes"]).decode("ascii"),
+                    "lai_distribution_map_filename": result["lai_distribution_map_filename"],
+                    "confidence": result["confidence"],
+                    "coverage_percent": result["coverage_percent"],
+                    "green_fraction_percent": result["green_fraction_percent"],
+                    "gap_fraction_percent": result["gap_fraction_percent"],
+                    "effective_k": result["effective_k"],
+                    "texture_homogeneity": result["texture_homogeneity"],
+                    "lai_stddev": result["lai_stddev"],
+                    "lai_p10": result["lai_p10"],
+                    "lai_p90": result["lai_p90"],
+                    "illumination_class": result["illumination_class"],
+                    "method_version": result["method_version"],
+                    "recommendation_text": result["recommendation"],
                     "crop_status": status_info.get("status", "unknown"),
                     "status_confidence": status_info.get("confidence", 0.0),
                 }

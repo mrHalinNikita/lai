@@ -4,27 +4,37 @@
     <template id="lai_calculator_page" name="LAI Calculator Page">
         <t t-call="website.layout">
             <div class="lai-shell">
+                <div class="lai-shell__backdrop" aria-hidden="true">
+                    <span class="lai-shell__glow lai-shell__glow--one"></span>
+                    <span class="lai-shell__glow lai-shell__glow--two"></span>
+                    <span class="lai-shell__line lai-shell__line--one"></span>
+                    <span class="lai-shell__line lai-shell__line--two"></span>
+                </div>
+
                 <section class="lai-hero">
                     <div class="lai-hero__copy">
-                        <span class="lai-kicker">Central Black Earth Region</span>
-                        <h1 class="lai-title">LAI анализ снимков для полей, опытных делянок и вертикальных поверхностей</h1>
+                        <span class="lai-kicker">Центральный Черноземный регион</span>
+                        <h1 class="lai-title">Оценка индекса LAI по RGB-фотографии для полей, квадратов учета и вертикального озеленения</h1>
                         <p class="lai-subtitle">
-                            Спокойный инструмент для оценки плотности листового покрова по фотографии.
-                            Подходит для полевых снимков, контрольных квадратов и исследовательских наблюдений.
+                            Легкий и устойчивый модуль для повседневной работы. Система оценивает растительное покрытие,
+                            долю просветов и итоговый индекс LAI по одному снимку с адаптивной сегментацией, подходящей
+                            для стабильной работы внутри Odoo.
                         </p>
                         <div class="lai-hero__chips">
-                            <span class="lai-chip">Полевой режим</span>
-                            <span class="lai-chip">Адаптивная сегментация</span>
-                            <span class="lai-chip">Heatmap покрытия</span>
+                            <span class="lai-chip">Подход Beer-Lambert</span>
+                            <span class="lai-chip">Адаптивные зеленые индексы</span>
+                            <span class="lai-chip">Локальная тепловая карта</span>
                         </div>
                     </div>
+
                     <div class="lai-hero__aside">
                         <div class="lai-soil-card">
-                            <div class="lai-soil-card__label">Ориентир</div>
+                            <div class="lai-soil-card__label">Научный режим</div>
                             <div class="lai-soil-card__value">LAI</div>
                             <p class="lai-soil-card__text">
-                                Низкие значения соответствуют редкому покрову и высокой просветности,
-                                высокие — плотному листовому экрану.
+                                Итоговое значение считается как косвенная оценка LAI по видимому покрытию, доле просветов
+                                и эффективному коэффициенту ослабления. Лучший результат получается на ровных, хорошо
+                                освещенных и максимально перпендикулярных кадрах.
                             </p>
                         </div>
                     </div>
@@ -33,8 +43,8 @@
                 <div class="lai-layout">
                     <section class="lai-panel lai-panel--form">
                         <div class="lai-section-head">
-                            <h2>Новый расчёт</h2>
-                            <p>Загрузите снимок и выберите режим анализа.</p>
+                            <h2>Новый расчет</h2>
+                            <p>Загрузите снимок, выберите тип сцены и выполните расчет научным RGB-методом.</p>
                         </div>
 
                         <form action="/lai-calculate" method="POST" enctype="multipart/form-data" class="lai-upload-form">
@@ -42,25 +52,25 @@
                                 <label class="lai-label">Фотография участка</label>
                                 <label class="lai-upload">
                                     <input type="file" class="lai-file-input" name="image" accept="image/*" required="1" capture="environment"/>
-                                    <span class="lai-upload__title">Перетащите или выберите изображение</span>
-                                    <span class="lai-upload__hint">Поддерживаются JPG, PNG, BMP, GIF и WEBP. Изображение будет автоматически оптимизировано.</span>
+                                    <span class="lai-upload__title">Перетащите изображение или выберите файл</span>
+                                    <span class="lai-upload__hint">Поддерживаются JPG, PNG, BMP, GIF и WEBP. Изображение будет автоматически нормализовано и оптимизировано.</span>
                                 </label>
                             </div>
 
                             <div id="image-preview-container" class="lai-preview-card" style="display: none;">
                                 <div class="lai-preview-card__meta">
                                     <span class="lai-preview-card__label">Предпросмотр</span>
-                                    <span class="lai-preview-card__hint">Проверьте кадр до расчёта</span>
+                                    <span class="lai-preview-card__hint">Проверьте кадр перед расчетом</span>
                                 </div>
                                 <div class="lai-preview-card__frame">
-                                    <img id="image-preview" src="" alt="Preview" />
+                                    <img id="image-preview" src="" alt="Предпросмотр снимка"/>
                                 </div>
                             </div>
 
                             <div class="lai-field-group">
                                 <label class="lai-label">Тип культуры / сцены</label>
                                 <div class="lai-choice-grid lai-choice-grid--crops">
-                                    <t t-foreach="[('wheat', 'Пшеница', 'Поле с выраженным листовым покровом'), ('corn', 'Кукуруза', 'Высокие растения, вертикальная структура'), ('sunflower', 'Подсолнечник', 'Крупный лист, выраженные тени'), ('soy', 'Соя', 'Средний полевой полог'), ('mixed', 'Смешанная', 'Универсальный режим'), ('vertical', 'Вертикальная', 'Стена, шпалера, фасад, плющ')]" t-as="crop">
+                                    <t t-foreach="[('wheat', 'Пшеница', 'Плотный полевой покров с узкими листьями'), ('corn', 'Кукуруза', 'Более высокая вертикальная структура растений'), ('sunflower', 'Подсолнечник', 'Крупный лист и выраженное самозатенение'), ('soy', 'Соя', 'Средняя по плотности многослойная листовая масса'), ('mixed', 'Смешанная', 'Универсальный режим для разных снимков'), ('vertical', 'Вертикальная', 'Фасад, шпалера, стена или вьющееся озеленение')]" t-as="crop">
                                         <input type="radio" name="crop_type" t-att-id="crop[0]" t-att-value="crop[0]" t-att-checked="crop[0] == 'mixed'"/>
                                         <label t-att-for="crop[0]" class="lai-choice-card">
                                             <span class="lai-choice-card__title" t-esc="crop[1]"/>
@@ -76,20 +86,20 @@
                                     <input type="radio" name="segmentation_method" id="method_cv" value="cv_ensemble" t-att-checked="segmentation_method == 'cv_ensemble' or not segmentation_method"/>
                                     <label for="method_cv" class="lai-method-card">
                                         <span class="lai-method-card__eyebrow">Рекомендуется</span>
-                                        <span class="lai-method-card__title">CV Ensemble</span>
-                                        <span class="lai-method-card__desc">Быстрее, стабильнее по памяти и лучше подходит для ежедневной полевой работы.</span>
+                                        <span class="lai-method-card__title">Научный RGB</span>
+                                        <span class="lai-method-card__desc">Расчет LAI по Beer-Lambert на основе RGB-сегментации, доли просветов и адаптивных зеленых индексов. Работает быстрее, экономнее по памяти и стабильнее для обычной эксплуатации в Odoo.</span>
                                     </label>
 
                                     <input type="radio" name="segmentation_method" id="method_sam" value="sam" t-att-checked="segmentation_method == 'sam'"/>
                                     <label for="method_sam" class="lai-method-card lai-method-card--accent">
-                                        <span class="lai-method-card__eyebrow">Исследовательский</span>
+                                        <span class="lai-method-card__eyebrow">Экспериментально</span>
                                         <span class="lai-method-card__title">Segment Anything</span>
-                                        <span class="lai-method-card__desc">Более тяжёлый режим для детальной сегментации, требует больше памяти и времени.</span>
+                                        <span class="lai-method-card__desc">Можно использовать как запасной вариант для сложных границ, но режим заметно тяжелее по памяти и менее предсказуем, чем научный RGB-конвейер.</span>
                                     </label>
                                 </div>
 
                                 <div id="sam-requirements-info" class="lai-note" style="display: none;">
-                                    <strong>SAM mode:</strong> подходит для точной исследовательской сегментации, но заметно тяжелее для сервера.
+                                    <strong>Режим SAM:</strong> используйте только если действительно нужен альтернативный способ построения маски. Для обычной работы основной режим - научный RGB.
                                 </div>
                             </div>
 
@@ -98,26 +108,26 @@
                                     <input type="checkbox" class="form-check-input" id="use_custom" name="use_custom_calibration" t-att-checked="use_custom_calibration"/>
                                     <label class="lai-toggle__label" for="use_custom">
                                         <span class="lai-toggle__title">Пользовательская калибровка</span>
-                                        <span class="lai-toggle__desc">Используйте, если вам нужна локальная шкала или исследовательская настройка.</span>
+                                        <span class="lai-toggle__desc">Позволяет вручную изменить чувствительность к оттенку зелени и диапазон итогового значения LAI для локальных экспериментов.</span>
                                     </label>
                                 </div>
 
                                 <div id="custom-calibration-fields" class="lai-calibration" style="display: none;">
                                     <div class="lai-calibration__grid">
                                         <div class="lai-input-card">
-                                            <label class="lai-label">Green Hue Center</label>
+                                            <label class="lai-label">Центр зеленого оттенка</label>
                                             <input type="number" step="0.01" min="0" max="1" class="form-control" name="custom_green_hue_center" t-att-value="custom_green_hue_center"/>
                                         </div>
                                         <div class="lai-input-card">
-                                            <label class="lai-label">Hue Sensitivity</label>
+                                            <label class="lai-label">Чувствительность оттенка</label>
                                             <input type="number" step="0.1" min="0" class="form-control" name="custom_green_hue_width" t-att-value="custom_green_hue_width"/>
                                         </div>
                                         <div class="lai-input-card">
-                                            <label class="lai-label">Min LAI</label>
+                                            <label class="lai-label">Минимальный LAI</label>
                                             <input type="number" step="0.1" min="0" class="form-control" name="custom_lai_min" t-att-value="custom_lai_min"/>
                                         </div>
                                         <div class="lai-input-card">
-                                            <label class="lai-label">Max LAI</label>
+                                            <label class="lai-label">Максимальный LAI</label>
                                             <input type="number" step="0.1" min="0.1" max="10" class="form-control" name="custom_lai_max" t-att-value="custom_lai_max"/>
                                         </div>
                                     </div>
@@ -142,27 +152,33 @@
                     <aside class="lai-panel lai-panel--side">
                         <div class="lai-section-head">
                             <h2>Как читать результат</h2>
-                            <p>Небольшая шкала для практического использования.</p>
+                            <p>Теперь система показывает не только итоговый LAI, но и промежуточные метрики, влияющие на расчет.</p>
                         </div>
 
                         <div class="lai-scale">
                             <div class="lai-scale__item">
-                                <span class="lai-scale__value">0.1–0.4</span>
-                                <p>Редкий покров, почва или фон заметно просматриваются.</p>
+                                <span class="lai-scale__value">0.1-0.4</span>
+                                <p>Редкий покров или большая доля видимого фона.</p>
                             </div>
                             <div class="lai-scale__item">
-                                <span class="lai-scale__value">0.5–1.2</span>
-                                <p>Средняя плотность, устойчивое листовое покрытие, но с просветами.</p>
+                                <span class="lai-scale__value">0.5-1.2</span>
+                                <p>Средняя плотность листовой массы с заметными просветами.</p>
                             </div>
                             <div class="lai-scale__item">
-                                <span class="lai-scale__value">1.3–2.5+</span>
-                                <p>Плотный листовой экран и низкая светопроницаемость.</p>
+                                <span class="lai-scale__value">1.3-2.5+</span>
+                                <p>Плотный покров с низкой светопроницаемостью и сильным визуальным закрытием фона.</p>
                             </div>
                         </div>
 
                         <div class="lai-note lai-note--warm">
-                            Центральный Чернозём отличается контрастом между тёмной почвой, сухими включениями и яркой зеленью.
-                            Для лучшего результата избегайте жёстких теней и снимайте участок максимально перпендикулярно.
+                            Для лучшей повторяемости избегайте жестких теней, пересветов и сильного наклона камеры.
+                            По возможности снимайте участок максимально перпендикулярно поверхности листового покрова.
+                        </div>
+
+                        <div class="lai-note">
+                            <strong>Важно.</strong>
+                            Модуль считает косвенную оценку LAI по фотографии. Он особенно полезен для сравнения снимков,
+                            мониторинга по датам и практической полевой оценки, но не заменяет эталонные разрушительные измерения.
                         </div>
                     </aside>
                 </div>
@@ -173,14 +189,21 @@
     <template id="lai_result_page" name="LAI Result Page">
         <t t-call="website.layout">
             <div class="lai-shell lai-shell--result">
+                <div class="lai-shell__backdrop" aria-hidden="true">
+                    <span class="lai-shell__glow lai-shell__glow--one"></span>
+                    <span class="lai-shell__glow lai-shell__glow--two"></span>
+                    <span class="lai-shell__line lai-shell__line--one"></span>
+                    <span class="lai-shell__line lai-shell__line--two"></span>
+                </div>
+
                 <section class="lai-result-hero">
                     <div class="lai-result-hero__main">
                         <span class="lai-kicker">Результат анализа</span>
                         <div class="lai-result-number">
-                            <span class="lai-result-number__label">LAI</span>
+                            <span class="lai-result-number__label">Оценка LAI</span>
                             <span class="lai-result-number__value" t-esc="calc.lai_avg"/>
                         </div>
-                        <p class="lai-lai-unit">Leaf Area Index (m² leaf / m² ground)</p>
+                        <p class="lai-lai-unit">Leaf Area Index estimate (m2 leaf / m2 ground)</p>
                         <p class="lai-meta">
                             <span t-esc="dict(calc._fields['crop_type'].selection).get(calc.crop_type)"/>
                             <span class="lai-meta__dot"></span>
@@ -200,8 +223,20 @@
                             <span class="lai-stat-card__value"><t t-esc="round(calc.coverage_percent, 1)"/>%</span>
                         </div>
                         <div class="lai-stat-card">
+                            <span class="lai-stat-card__label">Доля просветов</span>
+                            <span class="lai-stat-card__value"><t t-esc="round(calc.gap_fraction_percent, 1)"/>%</span>
+                        </div>
+                        <div class="lai-stat-card">
+                            <span class="lai-stat-card__label">Зеленая доля</span>
+                            <span class="lai-stat-card__value"><t t-esc="round(calc.green_fraction_percent, 1)"/>%</span>
+                        </div>
+                        <div class="lai-stat-card">
                             <span class="lai-stat-card__label">Текстура</span>
                             <span class="lai-stat-card__value"><t t-esc="round(calc.texture_homogeneity, 2)"/></span>
+                        </div>
+                        <div class="lai-stat-card">
+                            <span class="lai-stat-card__label">LAI P10-P90</span>
+                            <span class="lai-stat-card__value"><t t-esc="round(calc.lai_p10, 2)"/>-<t t-esc="round(calc.lai_p90, 2)"/></span>
                         </div>
                     </div>
                 </section>
@@ -212,19 +247,37 @@
                             <div class="lai-image-item">
                                 <div class="lai-image-head">
                                     <span class="lai-image-label">Исходный снимок</span>
-                                    <span class="lai-image-hint">Кадр пользователя</span>
+                                    <span class="lai-image-hint">Нормализованное изображение пользователя</span>
                                 </div>
                                 <div class="lai-image-frame">
-                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)" alt="Original field image"/>
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=image&amp;id=' + str(calc.id)" alt="Исходное изображение"/>
                                 </div>
                             </div>
                             <div class="lai-image-item">
                                 <div class="lai-image-head">
-                                    <span class="lai-image-label">Карта покрытия</span>
-                                    <span class="lai-image-hint">Плотность растительности по кадру</span>
+                                    <span class="lai-image-label">Карта растительности</span>
+                                    <span class="lai-image-hint">Вероятность и плотность растительного покрова</span>
                                 </div>
                                 <div class="lai-image-frame">
-                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)" alt="LAI heatmap"/>
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=vegetation_map&amp;id=' + str(calc.id)" alt="Карта растительности"/>
+                                </div>
+                            </div>
+                            <div class="lai-image-item">
+                                <div class="lai-image-head">
+                                    <span class="lai-image-label">Сводная тепловая карта</span>
+                                    <span class="lai-image-hint">Локальная плотность и распределение листовой массы</span>
+                                </div>
+                                <div class="lai-image-frame">
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id)" alt="Тепловая карта LAI"/>
+                                </div>
+                            </div>
+                            <div class="lai-image-item">
+                                <div class="lai-image-head">
+                                    <span class="lai-image-label">Карта распределения LAI</span>
+                                    <span class="lai-image-hint">Абсолютное локальное поле LAI по снимку</span>
+                                </div>
+                                <div class="lai-image-frame">
+                                    <img t-att-src="'/web/image?model=lai.calculation&amp;field=lai_distribution_map&amp;id=' + str(calc.id)" alt="Карта распределения LAI"/>
                                 </div>
                             </div>
                         </div>
@@ -233,12 +286,12 @@
                     <aside class="lai-panel lai-panel--side">
                         <div class="lai-section-head">
                             <h2>Интерпретация</h2>
-                            <p>Краткая сводка по снимку.</p>
+                            <p>Краткое пояснение к расчету и качеству снимка.</p>
                         </div>
 
                         <t t-if="calc.use_custom_calibration">
                             <div class="lai-note">
-                                <strong>Custom calibration enabled.</strong>
+                                <strong>Пользовательская калибровка включена.</strong>
                                 Hue=<t t-esc="calc.custom_green_hue_center"/>,
                                 Sensitivity=<t t-esc="calc.custom_green_hue_width"/>,
                                 Range=[<t t-esc="calc.custom_lai_min"/>, <t t-esc="calc.custom_lai_max"/>]
@@ -247,11 +300,19 @@
 
                         <t t-if="calc.crop_status and calc.crop_status != 'unknown'">
                             <div class="lai-ai-card">
-                                <span class="lai-ai-card__label">AI assessment</span>
+                                <span class="lai-ai-card__label">AI-оценка</span>
                                 <h3 t-esc="calc.crop_status"/>
-                                <p>Confidence: <strong><t t-esc="int(calc.status_confidence * 100)"/>%</strong></p>
+                                <p>Уверенность: <strong><t t-esc="int(calc.status_confidence * 100)"/>%</strong></p>
                             </div>
                         </t>
+
+                        <div class="lai-note">
+                            <strong>Метод.</strong>
+                            <p><t t-esc="calc.method_version or 'Scientific RGB'"/></p>
+                            <p>Эффективный k: <strong><t t-esc="round(calc.effective_k, 2)"/></strong></p>
+                            <p>Освещение: <strong><t t-esc="calc.illumination_class or 'unknown'"/></strong></p>
+                            <p>LAI std: <strong><t t-esc="round(calc.lai_stddev, 2)"/></strong></p>
+                        </div>
 
                         <t t-if="calc.recommendation_text">
                             <div class="lai-note lai-note--deep">
@@ -261,9 +322,9 @@
                         </t>
 
                         <div class="lai-actions lai-actions--stack">
-                            <a t-att-href="'/web/content?model=lai.calculation&amp;field=lai_heatmap&amp;id=' + str(calc.id) + '&amp;download=true&amp;filename=' + (calc.lai_heatmap_filename or 'lai_heatmap.jpg')"
+                            <a t-att-href="'/web/content?model=lai.calculation&amp;field=lai_distribution_map&amp;id=' + str(calc.id) + '&amp;download=true&amp;filename=' + (calc.lai_distribution_map_filename or 'lai_distribution_map.jpg')"
                                class="lai-download-btn">
-                                Скачать карту
+                                Скачать карту LAI
                             </a>
                             <a href="/lai-calculator" class="lai-back-btn">
                                 Новый анализ

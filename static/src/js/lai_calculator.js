@@ -17,19 +17,19 @@ function validateCalibration() {
     const laiMax = getVal("custom_lai_max");
 
     if (Number.isNaN(hueCenter) || hueCenter < 0 || hueCenter > 1) {
-        return { valid: false, message: "Green Hue Center must be between 0 and 1." };
+        return { valid: false, message: "Центр зеленого оттенка должен быть в диапазоне от 0 до 1." };
     }
     if (Number.isNaN(hueWidth) || hueWidth < 0.1 || hueWidth > 10) {
-        return { valid: false, message: "Hue Sensitivity must be between 0.1 and 10." };
+        return { valid: false, message: "Чувствительность оттенка должна быть в диапазоне от 0.1 до 10." };
     }
-    if (Number.isNaN(laiMin) || laiMin < 0 || laiMin > 5.9) {
-        return { valid: false, message: "Min LAI must be between 0 and 5.9." };
+    if (Number.isNaN(laiMin) || laiMin < 0 || laiMin > 7.9) {
+        return { valid: false, message: "Минимальный LAI должен быть в диапазоне от 0 до 7.9." };
     }
     if (Number.isNaN(laiMax) || laiMax < 0.1 || laiMax > 10) {
-        return { valid: false, message: "Max LAI must be between 0.1 and 10." };
+        return { valid: false, message: "Максимальный LAI должен быть в диапазоне от 0.1 до 10." };
     }
     if (laiMin >= laiMax) {
-        return { valid: false, message: "Min LAI must be less than Max LAI." };
+        return { valid: false, message: "Минимальный LAI должен быть меньше максимального." };
     }
 
     return { valid: true };
@@ -96,12 +96,12 @@ $(document).on("submit", ".lai-upload-form", function (event) {
     const validation = validateCalibration();
     if (!validation.valid) {
         event.preventDefault();
-        alert(`Validation Error: ${validation.message}`);
+        alert(`Ошибка валидации: ${validation.message}`);
         return false;
     }
 
     const $btn = $(this).find(".lai-submit-btn");
-    $btn.html("<span>Выполняется расчёт…</span>").prop("disabled", true);
+    $btn.html("<span>Выполняется расчет LAI...</span>").prop("disabled", true);
     return true;
 });
 

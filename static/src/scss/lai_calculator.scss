@@ -1,19 +1,22 @@
 :root {
-    --lai-font-display: "Segoe UI", "Trebuchet MS", "Gill Sans", sans-serif;
+    --lai-font-display: "Trebuchet MS", "Segoe UI", "Gill Sans", sans-serif;
     --lai-font-body: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    --lai-bg: #f6f1e8;
-    --lai-bg-soft: #efe6d8;
-    --lai-panel: rgba(255, 252, 247, 0.82);
-    --lai-panel-strong: rgba(255, 250, 241, 0.94);
-    --lai-border: rgba(88, 67, 44, 0.12);
-    --lai-border-strong: rgba(88, 67, 44, 0.2);
+    --lai-bg: #f5efe5;
+    --lai-bg-soft: #eee2d2;
+    --lai-panel: rgba(255, 251, 245, 0.78);
+    --lai-panel-strong: rgba(255, 250, 244, 0.9);
+    --lai-border: rgba(96, 71, 39, 0.1);
+    --lai-border-strong: rgba(96, 71, 39, 0.18);
     --lai-text: #2d2419;
-    --lai-muted: #6b6256;
+    --lai-muted: #6f675d;
     --lai-green: #476a3f;
-    --lai-green-soft: #7f9b67;
+    --lai-green-soft: #89a870;
     --lai-soil: #7a5a3a;
     --lai-gold: #c69a54;
-    --lai-shadow: 0 20px 50px rgba(58, 42, 23, 0.08);
+    --lai-grid-max: 1240px;
+    --lai-grid-gap: 32px;
+    --lai-shadow: 0 24px 60px rgba(58, 42, 23, 0.08);
+    --lai-shadow-soft: 0 14px 32px rgba(58, 42, 23, 0.05);
     --lai-radius-xl: 32px;
     --lai-radius-lg: 24px;
     --lai-radius-md: 18px;
@@ -23,21 +26,90 @@
 
 .lai-shell {
     min-height: 100vh;
-    padding: 48px 20px 72px;
+    position: relative;
+    isolation: isolate;
+    padding: 40px 20px 80px;
     color: var(--lai-text);
     font-family: var(--lai-font-body);
     background:
-        radial-gradient(circle at top left, rgba(123, 158, 94, 0.18), transparent 28%),
-        radial-gradient(circle at top right, rgba(198, 154, 84, 0.14), transparent 22%),
-        linear-gradient(180deg, #f8f3ec 0%, var(--lai-bg) 48%, #efe4d2 100%);
+        radial-gradient(circle at top left, rgba(136, 173, 102, 0.18), transparent 26%),
+        radial-gradient(circle at top right, rgba(205, 160, 91, 0.16), transparent 24%),
+        linear-gradient(180deg, #faf6f0 0%, var(--lai-bg) 42%, #efe2cf 100%);
     overflow: hidden;
 }
 
 .lai-shell--result {
     background:
-        radial-gradient(circle at top right, rgba(86, 127, 71, 0.16), transparent 24%),
-        radial-gradient(circle at bottom left, rgba(164, 119, 61, 0.12), transparent 24%),
-        linear-gradient(180deg, #f8f3ec 0%, #f3ebdf 44%, #ecdfca 100%);
+        radial-gradient(circle at top right, rgba(86, 127, 71, 0.16), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(164, 119, 61, 0.14), transparent 22%),
+        linear-gradient(180deg, #faf6f0 0%, #f3ebdf 44%, #ecdfca 100%);
+}
+
+.lai-shell__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.lai-shell__glow,
+.lai-shell__line {
+    position: absolute;
+    display: block;
+}
+
+.lai-shell__glow {
+    border-radius: 50%;
+    filter: blur(18px);
+    opacity: 0.9;
+    mix-blend-mode: screen;
+}
+
+.lai-shell__glow--one {
+    width: 34vw;
+    height: 34vw;
+    max-width: 520px;
+    max-height: 520px;
+    top: 10vh;
+    left: -8vw;
+    background: radial-gradient(circle, rgba(150, 196, 117, 0.24), rgba(255, 255, 255, 0) 70%);
+    animation: laiAtmosFloat 22s var(--lai-ease-smooth) infinite alternate;
+}
+
+.lai-shell__glow--two {
+    width: 42vw;
+    height: 42vw;
+    max-width: 620px;
+    max-height: 620px;
+    right: -12vw;
+    bottom: -10vh;
+    background: radial-gradient(circle, rgba(208, 171, 104, 0.2), rgba(255, 255, 255, 0) 72%);
+    animation: laiAtmosFloatSecondary 28s var(--lai-ease-smooth) infinite alternate;
+}
+
+.lai-shell__line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(108, 84, 52, 0.16), transparent);
+    opacity: 0.8;
+}
+
+.lai-shell__line--one {
+    width: 52vw;
+    max-width: 760px;
+    top: 22vh;
+    right: -8vw;
+    transform: rotate(-12deg);
+    animation: laiLineDrift 20s linear infinite;
+}
+
+.lai-shell__line--two {
+    width: 44vw;
+    max-width: 620px;
+    bottom: 20vh;
+    left: -4vw;
+    transform: rotate(9deg);
+    animation: laiLineDriftReverse 24s linear infinite;
 }
 
 .lai-shell::before {
@@ -46,28 +118,29 @@
     inset: 0;
     pointer-events: none;
     background-image:
-        linear-gradient(rgba(87, 63, 38, 0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(87, 63, 38, 0.018) 1px, transparent 1px);
-    background-size: 28px 28px;
-    opacity: 0.6;
-    animation: laiGridDrift 26s linear infinite;
+        linear-gradient(rgba(87, 63, 38, 0.016) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(87, 63, 38, 0.016) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.12));
+    opacity: 0.55;
+    animation: laiGridDrift 30s linear infinite;
 }
 
 .lai-shell::after {
     content: "";
     position: fixed;
-    width: 38vw;
-    height: 38vw;
-    min-width: 320px;
-    min-height: 320px;
-    right: -10vw;
-    top: 10vh;
+    width: 44vw;
+    height: 44vw;
+    min-width: 360px;
+    min-height: 360px;
+    right: -12vw;
+    top: 8vh;
     z-index: 0;
     pointer-events: none;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(122, 183, 120, 0.16), rgba(255, 255, 255, 0) 68%);
-    filter: blur(14px);
-    animation: laiOrbFloat 17s var(--lai-ease-smooth) infinite alternate;
+    background: radial-gradient(circle, rgba(122, 183, 120, 0.14), rgba(255, 255, 255, 0) 68%);
+    filter: blur(20px);
+    animation: laiOrbFloat 18s var(--lai-ease-smooth) infinite alternate;
 }
 
 .lai-hero,
@@ -75,16 +148,17 @@
 .lai-layout {
     position: relative;
     z-index: 1;
-    max-width: 1220px;
+    width: 100%;
+    max-width: var(--lai-grid-max);
     margin: 0 auto;
 }
 
 .lai-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
-    gap: 28px;
+    grid-template-columns: minmax(0, 8fr) minmax(320px, 4fr);
+    gap: var(--lai-grid-gap);
     align-items: stretch;
-    margin-bottom: 28px;
+    margin-bottom: var(--lai-grid-gap);
     animation: laiFadeLift 0.9s var(--lai-ease-smooth) both;
 }
 
@@ -94,7 +168,7 @@
 .lai-result-hero__stats,
 .lai-panel {
     background: var(--lai-panel);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(22px);
     border: 1px solid var(--lai-border);
     box-shadow: var(--lai-shadow);
     transition:
@@ -105,7 +179,8 @@
 }
 
 .lai-hero__copy {
-    padding: 42px;
+    min-height: 100%;
+    padding: 44px;
     border-radius: var(--lai-radius-xl);
     position: relative;
     overflow: hidden;
@@ -252,8 +327,8 @@
 
 .lai-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.8fr);
-    gap: 28px;
+    grid-template-columns: minmax(0, 8fr) minmax(320px, 4fr);
+    gap: var(--lai-grid-gap);
     animation: laiFadeLift 1s var(--lai-ease-smooth) both;
     animation-delay: 0.08s;
 }
@@ -264,15 +339,26 @@
 
 .lai-panel {
     border-radius: var(--lai-radius-xl);
-    padding: 30px;
+    min-height: 100%;
+    padding: 32px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.06)),
+        var(--lai-panel);
 }
 
 .lai-panel--wide {
-    padding: 30px;
+    padding: 32px;
+}
+
+.lai-panel--form,
+.lai-panel--side {
+    display: grid;
+    align-content: start;
+    gap: 22px;
 }
 
 .lai-section-head {
-    margin-bottom: 22px;
+    margin-bottom: 0;
 }
 
 .lai-section-head h2 {
@@ -288,7 +374,12 @@
 }
 
 .lai-field-group + .lai-field-group {
-    margin-top: 26px;
+    margin-top: 0;
+}
+
+.lai-upload-form {
+    display: grid;
+    gap: 24px;
 }
 
 .lai-label {
@@ -354,7 +445,6 @@
 }
 
 .lai-preview-card {
-    margin-top: 18px;
     padding: 18px;
     border-radius: var(--lai-radius-lg);
     background: rgba(255, 255, 255, 0.62);
@@ -388,10 +478,16 @@
     border-radius: var(--lai-radius-lg);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(238, 230, 218, 0.88));
     border: 1px solid rgba(88, 67, 44, 0.08);
+    display: grid;
+    place-items: center;
+    position: relative;
 }
 
 .lai-preview-card__frame {
-    max-height: 360px;
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: 4 / 5;
+    padding: 12px;
 }
 
 .lai-preview-card__frame img,
@@ -400,11 +496,13 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+    object-position: center;
+    border-radius: calc(var(--lai-radius-lg) - 4px);
 }
 
 .lai-choice-grid {
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .lai-choice-grid--crops {
@@ -422,7 +520,8 @@
 .lai-choice-card,
 .lai-method-card {
     display: block;
-    padding: 18px 18px 16px;
+    min-height: 100%;
+    padding: 20px 20px 18px;
     border-radius: var(--lai-radius-md);
     border: 1px solid var(--lai-border);
     background: rgba(255, 255, 255, 0.62);
@@ -531,6 +630,10 @@
     display: flex;
     gap: 14px;
     align-items: flex-start;
+    padding: 18px 20px;
+    border-radius: var(--lai-radius-md);
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px solid rgba(88, 67, 44, 0.08);
 }
 
 .lai-toggle input[type="checkbox"] {
@@ -550,8 +653,8 @@
 }
 
 .lai-calibration {
-    margin-top: 16px;
-    padding: 18px;
+    margin-top: 18px;
+    padding: 20px;
     background: rgba(255, 255, 255, 0.56);
     border: 1px solid rgba(88, 67, 44, 0.08);
 }
@@ -584,7 +687,7 @@
 }
 
 .lai-actions {
-    margin-top: 28px;
+    margin-top: 4px;
 }
 
 .lai-actions--stack {
@@ -670,7 +773,7 @@
 
 .lai-scale {
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .lai-scale__item {
@@ -694,14 +797,14 @@
 
 .lai-result-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
-    gap: 28px;
-    margin-bottom: 28px;
+    grid-template-columns: minmax(0, 8fr) minmax(320px, 4fr);
+    gap: var(--lai-grid-gap);
+    margin-bottom: var(--lai-grid-gap);
     animation: laiFadeLift 0.9s var(--lai-ease-smooth) both;
 }
 
 .lai-result-hero__main {
-    padding: 34px 36px;
+    padding: 36px 38px;
     border-radius: var(--lai-radius-xl);
 }
 
@@ -744,7 +847,7 @@
 .lai-result-hero__stats {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 16px;
     padding: 24px;
     border-radius: var(--lai-radius-xl);
 }
@@ -769,7 +872,7 @@
 .lai-image-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px;
+    gap: 24px;
 }
 
 .lai-image-item {
@@ -778,8 +881,12 @@
 }
 
 .lai-image-frame {
-    min-height: 360px;
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: 4 / 5;
+    padding: 12px;
     transition: transform 0.45s var(--lai-ease-smooth), box-shadow 0.45s var(--lai-ease-smooth);
+    box-shadow: var(--lai-shadow-soft);
 }
 
 .lai-image-item:hover .lai-image-frame {
@@ -828,12 +935,54 @@
     }
 }
 
+@keyframes laiAtmosFloat {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+        transform: translate3d(5vw, 4vh, 0) scale(1.08);
+    }
+    100% {
+        transform: translate3d(10vw, -2vh, 0) scale(0.96);
+    }
+}
+
+@keyframes laiAtmosFloatSecondary {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+        transform: translate3d(-4vw, -3vh, 0) scale(1.04);
+    }
+    100% {
+        transform: translate3d(-9vw, 2vh, 0) scale(0.98);
+    }
+}
+
 @keyframes laiGridDrift {
     from {
         transform: translate3d(0, 0, 0);
     }
     to {
         transform: translate3d(14px, 10px, 0);
+    }
+}
+
+@keyframes laiLineDrift {
+    from {
+        transform: rotate(-12deg) translateX(0);
+    }
+    to {
+        transform: rotate(-12deg) translateX(-40px);
+    }
+}
+
+@keyframes laiLineDriftReverse {
+    from {
+        transform: rotate(9deg) translateX(0);
+    }
+    to {
+        transform: rotate(9deg) translateX(44px);
     }
 }
 
@@ -851,6 +1000,8 @@
 @media (prefers-reduced-motion: reduce) {
     .lai-shell::before,
     .lai-shell::after,
+    .lai-shell__glow,
+    .lai-shell__line,
     .lai-soil-card::before,
     .lai-hero,
     .lai-layout,
@@ -893,6 +1044,12 @@
     .lai-result-hero {
         grid-template-columns: 1fr;
     }
+
+    .lai-hero__copy,
+    .lai-panel,
+    .lai-result-hero__main {
+        padding: 30px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -905,6 +1062,18 @@
         height: 58vw;
         right: -18vw;
         top: 6vh;
+    }
+
+    .lai-shell__glow--one {
+        width: 62vw;
+        height: 62vw;
+        left: -20vw;
+    }
+
+    .lai-shell__glow--two {
+        width: 72vw;
+        height: 72vw;
+        right: -26vw;
     }
 
     .lai-hero__copy,
@@ -923,7 +1092,7 @@
     }
 
     .lai-image-frame {
-        min-height: 260px;
+        aspect-ratio: 4 / 5;
     }
 
     .lai-result-number {

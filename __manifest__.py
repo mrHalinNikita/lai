@@ -21,9 +21,7 @@
         'python': [
             'numpy',
             'opencv-python',
-            'scikit-learn',
             'Pillow',
-            'scikit-image',
             'torch',
             'torchvision',
             'segment-anything',
